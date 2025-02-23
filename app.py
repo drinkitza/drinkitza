@@ -1,4 +1,4 @@
-# Version 2.3.1 - Add better error logging
+# Version 2.3.2 - Fix GitHub integration
 from flask import Flask, request, jsonify, send_from_directory
 import os
 from datetime import datetime
@@ -9,8 +9,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import traceback
 import base64
-import csv
-from io import StringIO
 
 app = Flask(__name__)
 
@@ -73,7 +71,7 @@ def sync_local_csv():
         log_error(e, "sync_local_csv")
         return False
 
-def get_current_emails():
+def check_duplicate_email(email):
     url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
     headers = {
         'Authorization': f'token {GITHUB_TOKEN}',
@@ -87,13 +85,12 @@ def get_current_emails():
         
         if 'content' in current_file:
             content = base64.b64decode(current_file['content']).decode('utf-8')
-            reader = csv.reader(StringIO(content))
-            emails = {row[0].lower() for row in reader if row}  # Use set for O(1) lookup
-            return emails, current_file.get('sha')
+            emails = [line.split(',')[0].lower() for line in content.splitlines() if line.strip()]
+            return email.lower() in emails, current_file.get('sha')
+        return False, current_file.get('sha')
     except Exception as e:
-        log_error(e, "get_current_emails")
-    
-    return set(), None
+        log_error(e, "check_duplicate_email")
+        return False, None
 
 def save_to_github(email):
     url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
@@ -103,24 +100,25 @@ def save_to_github(email):
     }
     
     try:
-        print(f"GitHub Token: {GITHUB_TOKEN[:4]}...{GITHUB_TOKEN[-4:]}")  # Print first and last 4 chars for debugging
-        
-        # Get current emails and check for duplicates
-        current_emails, sha = get_current_emails()
-        if email.lower() in current_emails:
+        # Check for duplicates
+        is_duplicate, sha = check_duplicate_email(email)
+        if is_duplicate:
             return 'duplicate'
+        
+        # Get current content
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        current_file = response.json()
         
         # Add new email
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        new_content = f'{email},{timestamp}\n'
+        new_email_line = f'{email},{timestamp}\n'
         
-        if current_emails:
-            # Reconstruct the file content with the new email
-            content = '\n'.join(f'{email},{timestamp}' for email, timestamp in 
-                              [line.split(',') for line in 
-                               base64.b64decode(requests.get(url, headers=headers).json()['content'])
-                               .decode('utf-8').splitlines() if line.strip()])
-            new_content = content + '\n' + new_content
+        if 'content' in current_file:
+            content = base64.b64decode(current_file['content']).decode('utf-8')
+            new_content = content + new_email_line
+        else:
+            new_content = new_email_line
         
         # Update file
         data = {
@@ -129,8 +127,8 @@ def save_to_github(email):
             'sha': sha
         }
         
-        response = requests.put(url, headers=headers, json=data)
-        response.raise_for_status()
+        update_response = requests.put(url, headers=headers, json=data)
+        update_response.raise_for_status()
         
         # Sync local CSV after successful GitHub update
         sync_local_csv()
@@ -138,8 +136,9 @@ def save_to_github(email):
         
     except Exception as e:
         error_msg = log_error(e, "save_to_github")
-        print(f"Response status code: {getattr(response, 'status_code', 'N/A')}")
-        print(f"Response content: {getattr(response, 'content', 'N/A')}")
+        print(f"GitHub Token (first/last 4): {GITHUB_TOKEN[:4]}...{GITHUB_TOKEN[-4:]}")
+        print(f"Response status: {getattr(response, 'status_code', 'N/A')}")
+        print(f"Response content: {getattr(response, 'text', 'N/A')}")
         return 'error'
 
 @app.route('/')
@@ -150,11 +149,8 @@ def root():
 def static_files(path):
     return send_from_directory('static', path)
 
-@app.route('/api/waitlist', methods=['POST', 'OPTIONS'])
+@app.route('/api/waitlist', methods=['POST'])
 def submit_email():
-    if request.method == 'OPTIONS':
-        return '', 204
-        
     try:
         data = request.get_json()
         if not data or 'email' not in data:
