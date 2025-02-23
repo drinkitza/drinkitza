@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
 import os
-import csv
 from datetime import datetime
 
 app = Flask(__name__)
@@ -21,9 +20,10 @@ def submit_email():
             return jsonify({'error': 'Email is required'}), 400
 
         email = data['email'].strip().lower()
-        with open('emails/waitlist.csv', 'a', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([email, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        
+        with open('emails.txt', 'a') as f:
+            f.write(f'{email},{timestamp}\n')
         
         return jsonify({
             'status': 'success',
