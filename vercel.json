@@ -1,5 +1,7 @@
 {
     "version": 2,
+    "buildCommand": "pip install -r requirements.txt",
+    "outputDirectory": ".",
     "builds": [
         {
             "src": "app.py",
@@ -11,10 +13,5 @@
             "src": "/(.*)",
             "dest": "app.py"
         }
-    ],
-    "functions": {
-        "app.py": {
-            "maxDuration": 10
-        }
-    }
+    ]
 }
