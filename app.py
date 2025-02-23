@@ -1,8 +1,9 @@
-# Version 2.1 - Store in GitHub
+# Version 2.2 - Auto-sync with local CSV
 from flask import Flask, request, jsonify, send_from_directory
 import os
 from datetime import datetime
 import requests
+import subprocess
 
 app = Flask(__name__)
 
@@ -10,6 +11,17 @@ GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 REPO_OWNER = 'drinkitza'
 REPO_NAME = 'drinkitza'
 FILE_PATH = 'emails/waitlist.csv'
+
+def sync_local_csv():
+    try:
+        # Get the directory of the current file
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # Run git pull
+        subprocess.run(['git', 'pull'], cwd=current_dir, check=True)
+        return True
+    except Exception as e:
+        print(f"Error syncing local CSV: {e}")
+        return False
 
 def save_to_github(email):
     # Get current file content
@@ -43,6 +55,9 @@ def save_to_github(email):
         
         response = requests.put(url, headers=headers, json=data)
         response.raise_for_status()
+        
+        # Sync local CSV after successful GitHub update
+        sync_local_csv()
         return True
         
     except Exception as e:
