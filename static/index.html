@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Itza Yerba Mate</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caesar+Dressing&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="announcement-banner">
+        <div class="banner-content">
+            <span>🎁 JOIN THE WAITLIST FOR A FREE YERBA MATE SET 🎁</span>
+            <span>🎁 JOIN THE WAITLIST FOR A FREE YERBA MATE SET 🎁</span>
+            <span>🎁 JOIN THE WAITLIST FOR A FREE YERBA MATE SET 🎁</span>
+            <span>🎁 JOIN THE WAITLIST FOR A FREE YERBA MATE SET 🎁</span>
+            <span>🎁 JOIN THE WAITLIST FOR A FREE YERBA MATE SET 🎁</span>
+        </div>
+    </div>
+    <div class="beta-badge">beta access</div>
+    <section class="hero">
+        <div class="content-container">
+            <h1>
+                <span class="title-main">
+                    <span class="title-top">Itza</span>
+                    <span class="title-bottom">Yerba Mate</span>
+                </span>
+                <span class="title-sub">Activate Ancient Energy</span>
+            </h1>
+            <div class="subtitle">
+                Struggling with midday slumps? Discover premium yerba mate infused with energizing herbs and spices for sustained energy and sharp focus.
+            </div>
+            <form id="waitlistForm" onsubmit="return submitForm(event)">
+                <div class="form-group">
+                    <input type="email" id="email" placeholder="Enter your email" required>
+                    <button type="submit" class="button">JOIN NOW ↓</button>
+                </div>
+                <div class="promo-text">First 50 sign ups get a free gourd and bombilla with their purchase</div>
+                <div id="message" class="message"></div>
+            </form>
+        </div>
+    </section>
+
+    <script>
+        async function submitForm(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const messageDiv = document.getElementById('message');
+            const form = document.getElementById('waitlistForm');
+
+            try {
+                const response = await fetch('/submit-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    messageDiv.textContent = data.message;
+                    messageDiv.className = 'message success';
+                    form.reset();
+                } else {
+                    messageDiv.textContent = data.error;
+                    messageDiv.className = 'message error';
+                }
+            } catch (error) {
+                messageDiv.textContent = 'An error occurred. Please try again.';
+                messageDiv.className = 'message error';
+            }
+
+            return false;
+        }
+    </script>
+</body>
+</html>
