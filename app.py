@@ -1,3 +1,4 @@
+# Version 2.0 - Simple text file storage
 from flask import Flask, request, jsonify, send_from_directory
 import os
 from datetime import datetime
@@ -22,7 +23,7 @@ def submit_email():
         email = data['email'].strip().lower()
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        with open('emails.txt', 'a') as f:
+        with open('/tmp/emails.txt', 'a') as f:
             f.write(f'{email},{timestamp}\n')
         
         return jsonify({
