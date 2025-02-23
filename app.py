@@ -1,9 +1,53 @@
-# Version 2.0 - Simple text file storage
+# Version 2.1 - Store in GitHub
 from flask import Flask, request, jsonify, send_from_directory
 import os
 from datetime import datetime
+import requests
 
 app = Flask(__name__)
+
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+REPO_OWNER = 'drinkitza'
+REPO_NAME = 'drinkitza'
+FILE_PATH = 'emails/waitlist.csv'
+
+def save_to_github(email):
+    # Get current file content
+    url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
+    headers = {
+        'Authorization': f'token {GITHUB_TOKEN}',
+        'Accept': 'application/vnd.github.v3+json'
+    }
+    
+    try:
+        # Get current file
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        current_file = response.json()
+        
+        # Add new email
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        new_content = f'{email},{timestamp}\n'
+        
+        if 'content' in current_file:
+            import base64
+            content = base64.b64decode(current_file['content']).decode('utf-8')
+            new_content = content + new_content
+        
+        # Update file
+        data = {
+            'message': f'Add email: {email}',
+            'content': base64.b64encode(new_content.encode('utf-8')).decode('utf-8'),
+            'sha': current_file.get('sha') if 'sha' in current_file else None
+        }
+        
+        response = requests.put(url, headers=headers, json=data)
+        response.raise_for_status()
+        return True
+        
+    except Exception as e:
+        print(f"GitHub Error: {e}")
+        return False
 
 @app.route('/')
 def root():
@@ -21,15 +65,14 @@ def submit_email():
             return jsonify({'error': 'Email is required'}), 400
 
         email = data['email'].strip().lower()
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        with open('/tmp/emails.txt', 'a') as f:
-            f.write(f'{email},{timestamp}\n')
-        
-        return jsonify({
-            'status': 'success',
-            'message': "You're on the waitlist! We'll notify you when we launch."
-        })
+        if save_to_github(email):
+            return jsonify({
+                'status': 'success',
+                'message': "You're on the waitlist! We'll notify you when we launch."
+            })
+        else:
+            return jsonify({'error': 'Failed to save email'}), 500
 
     except Exception as e:
         print(f"Error: {e}")
