@@ -1,4 +1,4 @@
-# Version 2.3 - Add email confirmation
+# Version 2.3.1 - Add better error logging
 from flask import Flask, request, jsonify, send_from_directory
 import os
 from datetime import datetime
@@ -7,6 +7,7 @@ import subprocess
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import traceback
 import base64
 import csv
 from io import StringIO
@@ -22,18 +23,27 @@ FILE_PATH = 'emails/waitlist.csv'
 # Email configuration
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
-SENDER_EMAIL = os.getenv('SENDER_EMAIL')  # Your Gmail address
-SENDER_PASSWORD = os.getenv('SENDER_APP_PASSWORD')  # Your Gmail App Password
+SENDER_EMAIL = os.getenv('SENDER_EMAIL')
+SENDER_PASSWORD = os.getenv('SENDER_APP_PASSWORD')
+
+def log_error(e, context=""):
+    error_msg = f"""
+    Error in {context}:
+    Type: {type(e).__name__}
+    Message: {str(e)}
+    Traceback:
+    {traceback.format_exc()}
+    """
+    print(error_msg)
+    return error_msg
 
 def send_confirmation_email(recipient_email):
     try:
-        # Create message
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
         msg['To'] = recipient_email
         msg['Subject'] = "Welcome to Itza's Waitlist!"
 
-        # Email content
         body = """
         Thank you for joining Itza's waitlist!
 
@@ -44,7 +54,6 @@ def send_confirmation_email(recipient_email):
         """
         msg.attach(MIMEText(body, 'plain'))
 
-        # Send email
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
@@ -52,7 +61,7 @@ def send_confirmation_email(recipient_email):
         
         return True
     except Exception as e:
-        print(f"Error sending confirmation email: {e}")
+        log_error(e, "send_confirmation_email")
         return False
 
 def sync_local_csv():
@@ -61,7 +70,7 @@ def sync_local_csv():
         subprocess.run(['git', 'pull'], cwd=current_dir, check=True)
         return True
     except Exception as e:
-        print(f"Error syncing local CSV: {e}")
+        log_error(e, "sync_local_csv")
         return False
 
 def get_current_emails():
@@ -82,7 +91,7 @@ def get_current_emails():
             emails = {row[0].lower() for row in reader if row}  # Use set for O(1) lookup
             return emails, current_file.get('sha')
     except Exception as e:
-        print(f"Error getting current emails: {e}")
+        log_error(e, "get_current_emails")
     
     return set(), None
 
@@ -94,6 +103,8 @@ def save_to_github(email):
     }
     
     try:
+        print(f"GitHub Token: {GITHUB_TOKEN[:4]}...{GITHUB_TOKEN[-4:]}")  # Print first and last 4 chars for debugging
+        
         # Get current emails and check for duplicates
         current_emails, sha = get_current_emails()
         if email.lower() in current_emails:
@@ -126,7 +137,9 @@ def save_to_github(email):
         return 'success'
         
     except Exception as e:
-        print(f"GitHub Error: {e}")
+        error_msg = log_error(e, "save_to_github")
+        print(f"Response status code: {getattr(response, 'status_code', 'N/A')}")
+        print(f"Response content: {getattr(response, 'content', 'N/A')}")
         return 'error'
 
 @app.route('/')
@@ -148,6 +161,7 @@ def submit_email():
             return jsonify({'error': 'Email is required'}), 400
 
         email = data['email'].strip().lower()
+        print(f"Processing email submission for: {email}")
         
         # Save email to GitHub
         result = save_to_github(email)
@@ -173,8 +187,8 @@ def submit_email():
             return jsonify({'error': 'Failed to save email'}), 500
 
     except Exception as e:
-        print(f"Error: {e}")
-        return jsonify({'error': 'Failed to save email'}), 500
+        error_msg = log_error(e, "submit_email")
+        return jsonify({'error': 'Failed to save email', 'details': error_msg}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
