@@ -1,6 +1,5 @@
-# Version 2.5 - Add CORS support
+# Version 2.3 - Add email confirmation
 from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
 import os
 from datetime import datetime
 import requests
@@ -13,8 +12,6 @@ import csv
 from io import StringIO
 
 app = Flask(__name__)
-# Enable CORS for all domains
-CORS(app)
 
 # GitHub configuration
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
@@ -25,16 +22,18 @@ FILE_PATH = 'emails/waitlist.csv'
 # Email configuration
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
-SENDER_EMAIL = os.getenv('SENDER_EMAIL')
-SENDER_PASSWORD = os.getenv('SENDER_APP_PASSWORD')
+SENDER_EMAIL = os.getenv('SENDER_EMAIL')  # Your Gmail address
+SENDER_PASSWORD = os.getenv('SENDER_APP_PASSWORD')  # Your Gmail App Password
 
 def send_confirmation_email(recipient_email):
     try:
+        # Create message
         msg = MIMEMultipart()
         msg['From'] = SENDER_EMAIL
         msg['To'] = recipient_email
         msg['Subject'] = "Welcome to Itza's Waitlist!"
 
+        # Email content
         body = """
         Thank you for joining Itza's waitlist!
 
@@ -45,6 +44,7 @@ def send_confirmation_email(recipient_email):
         """
         msg.attach(MIMEText(body, 'plain'))
 
+        # Send email
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
@@ -86,7 +86,7 @@ def get_current_emails():
     
     return set(), None
 
-def save_to_github(new_email):
+def save_to_github(email):
     url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
     headers = {
         'Authorization': f'token {GITHUB_TOKEN}',
@@ -96,12 +96,12 @@ def save_to_github(new_email):
     try:
         # Get current emails and check for duplicates
         current_emails, sha = get_current_emails()
-        if new_email.lower() in current_emails:
+        if email.lower() in current_emails:
             return 'duplicate'
         
         # Add new email
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        new_content = f'{new_email},{timestamp}\n'
+        new_content = f'{email},{timestamp}\n'
         
         if current_emails:
             # Reconstruct the file content with the new email
@@ -113,7 +113,7 @@ def save_to_github(new_email):
         
         # Update file
         data = {
-            'message': f'Add email: {new_email}',
+            'message': f'Add email: {email}',
             'content': base64.b64encode(new_content.encode('utf-8')).decode('utf-8'),
             'sha': sha
         }
