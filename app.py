@@ -1,5 +1,6 @@
-# Version 2.4 - Add duplicate email check
+# Version 2.5 - Add CORS support
 from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
 import os
 from datetime import datetime
 import requests
@@ -12,6 +13,8 @@ import csv
 from io import StringIO
 
 app = Flask(__name__)
+# Enable CORS for all domains
+CORS(app)
 
 # GitHub configuration
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
@@ -134,8 +137,11 @@ def root():
 def static_files(path):
     return send_from_directory('static', path)
 
-@app.route('/api/waitlist', methods=['POST'])
+@app.route('/api/waitlist', methods=['POST', 'OPTIONS'])
 def submit_email():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
     try:
         data = request.get_json()
         if not data or 'email' not in data:
