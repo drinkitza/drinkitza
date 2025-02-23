@@ -51,12 +51,12 @@
             const form = document.getElementById('waitlistForm');
 
             try {
-                const response = await fetch('/submit-email', {
+                const response = await fetch('/api/waitlist', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ email }),
+                    body: JSON.stringify({ email: email }),
                 });
 
                 const data = await response.json();
