@@ -1,22 +1,60 @@
-# Version 2.2 - Auto-sync with local CSV
+# Version 2.3 - Add email confirmation
 from flask import Flask, request, jsonify, send_from_directory
 import os
 from datetime import datetime
 import requests
 import subprocess
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 
+# GitHub configuration
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 REPO_OWNER = 'drinkitza'
 REPO_NAME = 'drinkitza'
 FILE_PATH = 'emails/waitlist.csv'
 
+# Email configuration
+SMTP_SERVER = 'smtp.gmail.com'
+SMTP_PORT = 587
+SENDER_EMAIL = os.getenv('SENDER_EMAIL')  # Your Gmail address
+SENDER_PASSWORD = os.getenv('SENDER_APP_PASSWORD')  # Your Gmail App Password
+
+def send_confirmation_email(recipient_email):
+    try:
+        # Create message
+        msg = MIMEMultipart()
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        msg['Subject'] = "Welcome to Itza's Waitlist!"
+
+        # Email content
+        body = """
+        Thank you for joining Itza's waitlist!
+
+        We're excited to have you on board. We'll notify you as soon as we launch.
+
+        Best regards,
+        The Itza Team
+        """
+        msg.attach(MIMEText(body, 'plain'))
+
+        # Send email
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            server.send_message(msg)
+        
+        return True
+    except Exception as e:
+        print(f"Error sending confirmation email: {e}")
+        return False
+
 def sync_local_csv():
     try:
-        # Get the directory of the current file
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        # Run git pull
         subprocess.run(['git', 'pull'], cwd=current_dir, check=True)
         return True
     except Exception as e:
@@ -24,7 +62,6 @@ def sync_local_csv():
         return False
 
 def save_to_github(email):
-    # Get current file content
     url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
     headers = {
         'Authorization': f'token {GITHUB_TOKEN}',
@@ -81,11 +118,19 @@ def submit_email():
 
         email = data['email'].strip().lower()
         
+        # Save email to GitHub
         if save_to_github(email):
-            return jsonify({
-                'status': 'success',
-                'message': "You're on the waitlist! We'll notify you when we launch."
-            })
+            # Send confirmation email
+            if send_confirmation_email(email):
+                return jsonify({
+                    'status': 'success',
+                    'message': "You're on the waitlist! Check your email for confirmation."
+                })
+            else:
+                return jsonify({
+                    'status': 'partial_success',
+                    'message': "You're on the waitlist! (Email confirmation failed)"
+                })
         else:
             return jsonify({'error': 'Failed to save email'}), 500
 
