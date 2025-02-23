@@ -1,19 +1,19 @@
 from flask import Flask, request, jsonify, send_from_directory
-import os
-import csv
 from datetime import datetime
+import os
+from pymongo import MongoClient
+from bson.json_util import dumps
 
 app = Flask(__name__)
 
-# Ensure the emails directory exists
-os.makedirs('emails', exist_ok=True)
-WAITLIST_FILE = 'emails/waitlist.csv'
+# MongoDB Atlas connection string (you'll need to set this as an environment variable in Vercel)
+MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb+srv://your-connection-string')
+client = MongoClient(MONGODB_URI)
+db = client.itza_db
+waitlist = db.waitlist
 
-# Create the CSV file if it doesn't exist
-if not os.path.exists(WAITLIST_FILE):
-    with open(WAITLIST_FILE, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['Email', 'Timestamp'])
+# Ensure the static directory exists
+os.makedirs('static', exist_ok=True)
 
 @app.route('/')
 def root():
@@ -35,33 +35,26 @@ def submit_email():
             return jsonify({'error': 'Email cannot be empty'}), 400
 
         # Check if email already exists
-        try:
-            with open(WAITLIST_FILE, 'r', newline='') as f:
-                reader = csv.reader(f)
-                next(reader)  # Skip header
-                existing_emails = [row[0].lower() for row in reader]
-                if email in existing_emails:
-                    return jsonify({'error': 'Email already registered'}), 400
-        except Exception as e:
-            print(f"Error checking existing emails: {e}")
+        if waitlist.find_one({'email': email}):
+            return jsonify({'error': 'Email already registered'}), 400
 
-        # Add the new email
-        try:
-            with open(WAITLIST_FILE, 'a', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow([email, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
-            
-            print(f"Successfully added email: {email}")
+        # Add new email to MongoDB
+        result = waitlist.insert_one({
+            'email': email,
+            'timestamp': datetime.utcnow(),
+            'status': 'active'
+        })
+
+        if result.inserted_id:
             return jsonify({
                 'status': 'success',
                 'message': "You're on the waitlist! We'll notify you when we launch."
             })
-        except Exception as e:
-            print(f"Error writing to CSV: {e}")
+        else:
             return jsonify({'error': 'Failed to save email'}), 500
 
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        print(f"Error saving email: {e}")
         return jsonify({'error': 'Server error'}), 500
 
 @app.route('/check-font')
