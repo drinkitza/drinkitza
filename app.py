@@ -14,15 +14,27 @@ app = Flask(__name__)
 # MongoDB Atlas connection
 try:
     MONGODB_URI = os.getenv('MONGODB_URI')
+    if not MONGODB_URI:
+        logger.error("MONGODB_URI environment variable is not set!")
+        raise ValueError("MONGODB_URI environment variable is not set!")
+        
     logger.info("Attempting to connect to MongoDB...")
     client = MongoClient(MONGODB_URI)
+    
     # Verify connection
     client.admin.command('ping')
     logger.info("Successfully connected to MongoDB!")
-    db = client.itza_db
-    waitlist = db.waitlist
+    
+    # Get or create database and collection
+    db = client['drinkitza']  # Changed database name to match project
+    waitlist = db['waitlist']
+    
+    # Create an index on email field to ensure uniqueness
+    waitlist.create_index('email', unique=True)
+    
+    logger.info("Database and collection setup complete!")
 except Exception as e:
-    logger.error(f"Failed to connect to MongoDB: {e}")
+    logger.error(f"Failed to connect to MongoDB: {str(e)}")
     raise
 
 # Ensure the static directory exists
@@ -40,7 +52,7 @@ def static_files(path):
 def submit_email():
     try:
         data = request.get_json()
-        logger.info(f"Received submission request: {data}")
+        logger.info(f"Received submission request with data: {data}")
         
         if not data or 'email' not in data:
             logger.warning("No email provided in request")
@@ -51,31 +63,35 @@ def submit_email():
             logger.warning("Empty email provided")
             return jsonify({'error': 'Email cannot be empty'}), 400
 
-        # Check if email already exists
-        existing = waitlist.find_one({'email': email})
-        if existing:
-            logger.info(f"Email already registered: {email}")
-            return jsonify({'error': 'Email already registered'}), 400
-
         # Add new email to MongoDB
-        result = waitlist.insert_one({
-            'email': email,
-            'timestamp': datetime.utcnow(),
-            'status': 'active'
-        })
-
-        if result.inserted_id:
-            logger.info(f"Successfully added email: {email}")
-            return jsonify({
-                'status': 'success',
-                'message': "You're on the waitlist! We'll notify you when we launch."
+        try:
+            result = waitlist.insert_one({
+                'email': email,
+                'timestamp': datetime.utcnow(),
+                'status': 'active',
+                'source': 'website'
             })
-        else:
-            logger.error("Failed to insert email into database")
-            return jsonify({'error': 'Failed to save email'}), 500
+            
+            if result.inserted_id:
+                logger.info(f"Successfully added email to database: {email}")
+                return jsonify({
+                    'status': 'success',
+                    'message': "You're on the waitlist! We'll notify you when we launch."
+                })
+            else:
+                logger.error("Failed to insert email - no inserted_id returned")
+                return jsonify({'error': 'Failed to save email'}), 500
+                
+        except Exception as db_error:
+            if "duplicate key error" in str(db_error).lower():
+                logger.info(f"Duplicate email attempted: {email}")
+                return jsonify({'error': 'Email already registered'}), 400
+            else:
+                logger.error(f"Database error while saving email: {str(db_error)}")
+                return jsonify({'error': 'Failed to save email'}), 500
 
     except Exception as e:
-        logger.error(f"Error saving email: {e}")
+        logger.error(f"Unexpected error in submit_email: {str(e)}")
         return jsonify({'error': 'Server error'}), 500
 
 @app.route('/check-font')
