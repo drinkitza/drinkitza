@@ -37,20 +37,35 @@ def log_error(e, context=""):
 
 def send_confirmation_email(recipient_email):
     try:
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = SENDER_EMAIL
         msg['To'] = recipient_email
-        msg['Subject'] = "Welcome to Itza's Waitlist!"
+        msg['Subject'] = "Thanks for Pre-ordering Itza Yerba Mate!"
 
-        body = """
-        Thank you for joining Itza's waitlist!
-
-        We're excited to have you on board. We'll notify you as soon as we launch.
-
+        # Read the HTML template
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'confirmation_template.html'), 'r') as file:
+            html_content = file.read()
+            
+        # Replace placeholder with recipient email
+        html_content = html_content.replace('{{email}}', recipient_email)
+        
+        # Attach HTML version
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        # Plain text alternative for email clients that don't support HTML
+        plain_text = """
+        Thank you for pre-ordering Itza Yerba Mate!
+        
+        We're excited to have you join our tribe of natural energy seekers. Itza is nature's pre-workout - no powders, no bullshit, just as the gods intended.
+        
+        Unlike coffee and energy drinks that leave you anxious and jittery followed by a crash, Itza provides smooth, sustained energy that keeps you focused and productive all day long.
+        
+        We'll notify you when your order ships.
+        
         Best regards,
         The Itza Team
         """
-        msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(plain_text, 'plain'))
 
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
