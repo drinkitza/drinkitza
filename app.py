@@ -1,30 +1,38 @@
-# Version 2.3.2 - Fix GitHub integration
+# Itza Yerba Mate - Waitlist Signup
 from flask import Flask, request, jsonify, send_from_directory
 import os
 from datetime import datetime
 import requests
-import subprocess
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import traceback
 import base64
+import json
+import time
 
 app = Flask(__name__)
 
-# GitHub configuration
+# GitHub configuration for waitlist storage
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 REPO_OWNER = 'drinkitza'
 REPO_NAME = 'drinkitza'
 FILE_PATH = 'emails/waitlist.csv'
 
-# Email configuration
+# Email configuration - SMTP fallback
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
 SENDER_EMAIL = os.getenv('SENDER_EMAIL', 'drinkitza@gmail.com')
 SENDER_APP_PASSWORD = os.getenv('SENDER_APP_PASSWORD', '')
 
+# EmailJS configuration (primary method)
+EMAIL_SERVICE_URL = os.getenv('EMAIL_SERVICE_URL')
+EMAIL_SERVICE_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID')
+EMAIL_SERVICE_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
+EMAIL_SERVICE_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
+
 def log_error(e, context=""):
+    """Log errors with context for easier debugging"""
     error_msg = f"""
     Error in {context}:
     Type: {type(e).__name__}
@@ -36,8 +44,40 @@ def log_error(e, context=""):
     return error_msg
 
 def send_confirmation_email(recipient_email):
+    """Send the beautiful thank you email to new waitlist signups"""
     try:
-        # Create a multipart message
+        # First try EmailJS (primary method)
+        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
+            try:
+                emailjs_data = {
+                    'service_id': EMAIL_SERVICE_URL,
+                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
+                    'user_id': EMAIL_SERVICE_USER_ID,
+                    'template_params': {
+                        'to_email': recipient_email,
+                        'email': recipient_email  # For template replacement
+                    },
+                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+                }
+                
+                headers = {'Content-Type': 'application/json'}
+                response = requests.post(
+                    'https://api.emailjs.com/api/v1.0/email/send',
+                    headers=headers,
+                    json=emailjs_data
+                )
+                
+                if response.status_code == 200:
+                    print(f"Email sent successfully to {recipient_email} via EmailJS")
+                    return True
+                else:
+                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
+                    # Fall back to SMTP or queue
+            except Exception as e:
+                print(f"EmailJS error: {str(e)}")
+                # Fall back to SMTP or queue
+        
+        # Create a multipart message for SMTP or queue
         msg = MIMEMultipart('alternative')
         msg['From'] = SENDER_EMAIL
         msg['To'] = recipient_email
@@ -45,116 +85,62 @@ def send_confirmation_email(recipient_email):
 
         # Read the HTML template
         template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'confirmation_template.html')
-        print(f"Loading email template from: {template_path}")
         
         if not os.path.exists(template_path):
             print(f"Warning: Email template not found at {template_path}")
-            # Fallback to simple HTML if template is missing
-            html_content = f"""
-            <html>
-            <body>
-                <h1>Thanks for Joining Itza Yerba Mate's Pre-order Waitlist!</h1>
-                <p>We're excited to have you join our tribe of natural energy seekers.</p>
-                <p>Itza is nature's pre-workout - no powders, no bullshit, just as the gods intended.</p>
-                <p>Best regards,<br>The Itza Team</p>
-            </body>
-            </html>
-            """
+            html_content = "<p>Thanks for joining Itza Yerba Mate's pre-order waitlist!</p>"
         else:
-            with open(template_path, 'r', encoding='utf-8') as file:
-                html_content = file.read()
-                print(f"Email template loaded successfully ({len(html_content)} characters)")
-            
-        # Replace placeholder with recipient email
+            with open(template_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+        
+        # Replace placeholders
         html_content = html_content.replace('{{email}}', recipient_email)
         
-        # Create plain text version
-        plain_text = """
-        Thank you for joining Itza Yerba Mate's pre-order waitlist!
+        # Create HTML version
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
         
-        We're excited to have you join our tribe of natural energy seekers. Itza is nature's pre-workout - no powders, no bullshit, just as the gods intended.
-        
-        Our special blend combines premium yerba mate with powerful natural ingredients:
-        - YERBA MATE: The sacred plant of the Guaraní people, providing clean, sustained energy
-        - GINGER: Natural anti-inflammatory that enhances circulation and digestion
-        - MINT: Refreshing flavor that improves focus and mental clarity
-        - LEMON PEEL: Rich in antioxidants and adds a bright, citrus note
-        - GINSENG: Ancient adaptogen that boosts energy and reduces fatigue
-        - STAR ANISE: Aromatic spice with antimicrobial properties and distinctive flavor
-        
-        Unlike coffee and energy drinks that leave you anxious and jittery followed by a crash, Itza provides smooth, sustained energy that keeps you focused and productive all day long.
-        
-        We'll notify you when pre-orders open. In the meantime, follow us on social media for updates and special offers!
-        
-        Best regards,
-        The Itza Team
-        """
-        
-        # Attach parts to the message
-        part1 = MIMEText(plain_text, 'plain')
-        part2 = MIMEText(html_content, 'html')
-        
-        # The email client will try to render the last part first
-        msg.attach(part1)
-        msg.attach(part2)
-        
-        # Try to send via SMTP
+        # Try to send email via SMTP as second option
         if SENDER_APP_PASSWORD:
             try:
-                print(f"Sending email to {recipient_email} via SMTP...")
-                with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                    server.starttls()
-                    server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
-                    server.send_message(msg)
-                print("Email sent successfully via SMTP!")
+                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                server.starttls()
+                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.send_message(msg)
+                server.quit()
+                print(f"Email sent successfully to {recipient_email} via SMTP")
                 return True
-            except Exception as smtp_error:
-                print(f"SMTP error: {str(smtp_error)}")
-                # Fall back to queue method
+            except Exception as e:
+                print(f"SMTP sending failed: {str(e)}")
+                # Fall back to queue
         
-        # Queue the email for later sending
+        # Queue the email if both EmailJS and SMTP fail
         queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
         os.makedirs(queue_dir, exist_ok=True)
         
         email_data = {
             'to': recipient_email,
-            'subject': "Thanks for Joining Itza Yerba Mate's Pre-order Waitlist!",
-            'html': html_content,
-            'plain': plain_text,
-            'timestamp': datetime.now().isoformat()
+            'from': SENDER_EMAIL,
+            'subject': msg['Subject'],
+            'html': html_content
         }
         
-        # Create a unique filename
-        filename = f"{int(datetime.now().timestamp())}_{recipient_email.replace('@', '_at_')}.json"
-        file_path = os.path.join(queue_dir, filename)
+        timestamp = str(int(time.time()))
+        filename = f"{timestamp}_{recipient_email.replace('@', '_at_')}.json"
+        filepath = os.path.join(queue_dir, filename)
         
-        with open(file_path, 'w', encoding='utf-8') as f:
-            import json
-            json.dump(email_data, f)
-            
-        print(f"Email queued for later sending: {file_path}")
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(email_data, f, indent=2)
+        
+        print(f"Email queued for {recipient_email} at {filepath}")
         return True
-            
+        
     except Exception as e:
         log_error(e, "send_confirmation_email")
-        print(f"Failed to send confirmation email to {recipient_email}: {str(e)}")
-        return False
-
-def sync_local_csv():
-    try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        subprocess.run(['git', 'pull'], cwd=current_dir, check=True)
-        return True
-    except Exception as e:
-        log_error(e, "sync_local_csv")
         return False
 
 def check_duplicate_email(email):
-    # Special case for testing
-    if email.lower() == "ncosereanu@gmail.com":
-        print("Bypassing duplicate check for test email")
-        return False, None
-        
+    """Check if email already exists in the waitlist"""
     url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
     headers = {
         'Authorization': f'token {GITHUB_TOKEN}',
@@ -176,6 +162,7 @@ def check_duplicate_email(email):
         return False, None
 
 def save_to_github(email):
+    """Save email to GitHub repository"""
     url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
     headers = {
         'Authorization': f'token {GITHUB_TOKEN}',
@@ -213,31 +200,51 @@ def save_to_github(email):
         update_response = requests.put(url, headers=headers, json=data)
         update_response.raise_for_status()
         
-        # Sync local CSV after successful GitHub update
-        sync_local_csv()
+        # Also save to local CSV for backup
+        save_to_local_csv(email, timestamp)
         return 'success'
         
     except Exception as e:
         error_msg = log_error(e, "save_to_github")
-        print(f"GitHub Token (first/last 4): {GITHUB_TOKEN[:4]}...{GITHUB_TOKEN[-4:]}")
-        print(f"Response status: {getattr(response, 'status_code', 'N/A')}")
-        print(f"Response content: {getattr(response, 'text', 'N/A')}")
+        # Try to save locally as fallback
+        save_to_local_csv(email)
         return 'error'
 
+def save_to_local_csv(email, timestamp=None):
+    """Save email to local CSV file as backup"""
+    try:
+        if timestamp is None:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+        csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+        
+        with open(csv_path, 'a', encoding='utf-8') as f:
+            f.write(f'{email},{timestamp}\n')
+        return True
+    except Exception as e:
+        log_error(e, "save_to_local_csv")
+        return False
+
+# Routes
 @app.route('/')
 def root():
+    """Serve the main page"""
     return send_from_directory('static', 'index.html')
 
-@app.route('/test')
-def test_form():
-    return send_from_directory('.', 'test_form.html')
+@app.route('/waitlist')
+def waitlist():
+    """Serve the waitlist page"""
+    return send_from_directory('.', 'waitlist.html')
 
 @app.route('/<path:path>')
 def static_files(path):
+    """Serve static files"""
     return send_from_directory('static', path)
 
 @app.route('/api/waitlist', methods=['POST'])
 def submit_email():
+    """Handle email submission for waitlist"""
     try:
         data = request.get_json()
         if not data or 'email' not in data:
@@ -254,8 +261,8 @@ def submit_email():
                 'status': 'already_registered',
                 'message': "You're already on our waitlist!"
             })
-        elif result == 'success':
-            # Send confirmation email
+        elif result == 'success' or result == 'error':
+            # Even if GitHub save failed, we still try to send confirmation
             if send_confirmation_email(email):
                 return jsonify({
                     'status': 'success',
