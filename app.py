@@ -43,8 +43,26 @@ def send_confirmation_email(recipient_email):
         msg['Subject'] = "Thanks for Pre-ordering Itza Yerba Mate!"
 
         # Read the HTML template
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'confirmation_template.html'), 'r') as file:
-            html_content = file.read()
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'confirmation_template.html')
+        print(f"Loading email template from: {template_path}")
+        
+        if not os.path.exists(template_path):
+            print(f"Warning: Email template not found at {template_path}")
+            # Fallback to simple HTML if template is missing
+            html_content = f"""
+            <html>
+            <body>
+                <h1>Thanks for Pre-ordering Itza Yerba Mate!</h1>
+                <p>We're excited to have you join our tribe of natural energy seekers.</p>
+                <p>Itza is nature's pre-workout - no powders, no bullshit, just as the gods intended.</p>
+                <p>Best regards,<br>The Itza Team</p>
+            </body>
+            </html>
+            """
+        else:
+            with open(template_path, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+                print(f"Email template loaded successfully ({len(html_content)} characters)")
             
         # Replace placeholder with recipient email
         html_content = html_content.replace('{{email}}', recipient_email)
@@ -54,27 +72,38 @@ def send_confirmation_email(recipient_email):
         
         # Plain text alternative for email clients that don't support HTML
         plain_text = """
-        Thank you for pre-ordering Itza Yerba Mate!
+        Thank you for joining Itza Yerba Mate's pre-order waitlist!
         
         We're excited to have you join our tribe of natural energy seekers. Itza is nature's pre-workout - no powders, no bullshit, just as the gods intended.
         
+        Our special blend combines premium yerba mate with powerful natural ingredients:
+        - YERBA MATE: The sacred plant of the Guaraní people, providing clean, sustained energy
+        - GINGER: Natural anti-inflammatory that enhances circulation and digestion
+        - MINT: Refreshing flavor that improves focus and mental clarity
+        - LEMON PEEL: Rich in antioxidants and adds a bright, citrus note
+        - GINSENG: Ancient adaptogen that boosts energy and reduces fatigue
+        - STAR ANISE: Aromatic spice with antimicrobial properties and distinctive flavor
+        
         Unlike coffee and energy drinks that leave you anxious and jittery followed by a crash, Itza provides smooth, sustained energy that keeps you focused and productive all day long.
         
-        We'll notify you when your order ships.
+        We'll notify you when pre-orders open. In the meantime, follow us on social media for updates and special offers!
         
         Best regards,
         The Itza Team
         """
         msg.attach(MIMEText(plain_text, 'plain'))
 
+        print(f"Sending confirmation email to: {recipient_email}")
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.send_message(msg)
+            print("Email sent successfully!")
         
         return True
     except Exception as e:
         log_error(e, "send_confirmation_email")
+        print(f"Failed to send confirmation email to {recipient_email}: {str(e)}")
         return False
 
 def sync_local_csv():
@@ -159,6 +188,10 @@ def save_to_github(email):
 @app.route('/')
 def root():
     return send_from_directory('static', 'index.html')
+
+@app.route('/test')
+def test_form():
+    return send_from_directory('.', 'test_form.html')
 
 @app.route('/<path:path>')
 def static_files(path):
