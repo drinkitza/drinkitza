@@ -257,30 +257,50 @@ def remove_email_from_csv(email_to_remove):
     """Remove an email from the local CSV file"""
     csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
     
+    print(f"Attempting to remove email: {email_to_remove}")
+    print(f"CSV path: {csv_path}")
+    
     if not os.path.exists(csv_path):
+        print(f"CSV file not found at: {csv_path}")
         return False
     
     temp_path = csv_path + '.temp'
     removed = False
     
     try:
-        with open(csv_path, 'r', encoding='utf-8') as f_in, open(temp_path, 'w', encoding='utf-8', newline='') as f_out:
-            reader = csv.DictReader(f_in)
-            writer = csv.DictWriter(f_out, fieldnames=['email', 'timestamp'])
-            writer.writeheader()
-            
+        # Read all existing emails
+        all_emails = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
             for row in reader:
-                if row['email'].lower() != email_to_remove.lower():
-                    writer.writerow(row)
-                else:
-                    removed = True
+                print(f"Reading row: {row}")
+                all_emails.append(row)
+        
+        # Filter out the email to remove
+        filtered_emails = []
+        for email_data in all_emails:
+            if email_data['email'].lower() != email_to_remove.lower():
+                filtered_emails.append(email_data)
+            else:
+                removed = True
+                print(f"Found and removing email: {email_to_remove}")
+        
+        # Write back the filtered emails
+        with open(temp_path, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=['email', 'timestamp'])
+            writer.writeheader()
+            for email_data in filtered_emails:
+                writer.writerow(email_data)
         
         if removed:
+            print(f"Email found and removed, replacing {temp_path} with {csv_path}")
             os.replace(temp_path, csv_path)
         else:
+            print(f"Email not found, removing temp file: {temp_path}")
             os.remove(temp_path)
     except Exception as e:
-        log_error(e, "remove_email_from_csv")
+        error_msg = log_error(e, "remove_email_from_csv")
+        print(f"Error in remove_email_from_csv: {error_msg}")
         return False
     
     return removed
