@@ -144,6 +144,31 @@
             font-size: 0.9rem;
             color: #666;
         }
+        
+        .admin-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--primary-green);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .admin-button:hover {
+            background-color: var(--accent-orange);
+            transform: scale(1.1);
+        }
     </style>
 </head>
 <body>
@@ -178,6 +203,11 @@
             <p>First 50 sign ups get a free gourd and bombilla with their purchase</p>
         </div>
     </div>
+    
+    <!-- Admin Button -->
+    <a href="/admin" class="admin-button" title="Admin Dashboard">
+        <span>⚙️</span>
+    </a>
 
     <script>
         async function submitForm(event) {

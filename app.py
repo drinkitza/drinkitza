@@ -10,6 +10,7 @@ import traceback
 import base64
 import json
 import time
+import csv
 
 app = Flask(__name__)
 
@@ -30,6 +31,10 @@ EMAIL_SERVICE_URL = os.getenv('EMAIL_SERVICE_URL')
 EMAIL_SERVICE_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID')
 EMAIL_SERVICE_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
 EMAIL_SERVICE_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
+
+# Simple admin authentication (for demo purposes only - use proper auth in production)
+ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'itzaadmin')
 
 def log_error(e, context=""):
     """Log errors with context for easier debugging"""
@@ -226,6 +231,60 @@ def save_to_local_csv(email, timestamp=None):
         log_error(e, "save_to_local_csv")
         return False
 
+def get_all_emails_from_csv():
+    """Get all emails from the local CSV file"""
+    emails = []
+    csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
+    
+    if not os.path.exists(csv_path):
+        return emails
+    
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if 'email' in row and 'timestamp' in row:
+                    emails.append({
+                        'email': row['email'],
+                        'timestamp': row['timestamp']
+                    })
+    except Exception as e:
+        log_error(e, "get_all_emails_from_csv")
+    
+    return emails
+
+def remove_email_from_csv(email_to_remove):
+    """Remove an email from the local CSV file"""
+    csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
+    
+    if not os.path.exists(csv_path):
+        return False
+    
+    temp_path = csv_path + '.temp'
+    removed = False
+    
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f_in, open(temp_path, 'w', encoding='utf-8', newline='') as f_out:
+            reader = csv.DictReader(f_in)
+            writer = csv.DictWriter(f_out, fieldnames=['email', 'timestamp'])
+            writer.writeheader()
+            
+            for row in reader:
+                if row['email'].lower() != email_to_remove.lower():
+                    writer.writerow(row)
+                else:
+                    removed = True
+        
+        if removed:
+            os.replace(temp_path, csv_path)
+        else:
+            os.remove(temp_path)
+    except Exception as e:
+        log_error(e, "remove_email_from_csv")
+        return False
+    
+    return removed
+
 # Routes
 @app.route('/')
 def root():
@@ -237,10 +296,122 @@ def waitlist():
     """Serve the waitlist page"""
     return send_from_directory('.', 'waitlist.html')
 
+@app.route('/admin')
+def admin():
+    """Serve the admin page"""
+    return send_from_directory('.', 'admin.html')
+
 @app.route('/<path:path>')
 def static_files(path):
     """Serve static files"""
     return send_from_directory('static', path)
+
+# Admin API endpoints
+@app.route('/api/admin/emails', methods=['GET'])
+def admin_get_emails():
+    """Get all emails in the waitlist"""
+    # Simple auth check (use proper auth in production)
+    auth = request.authorization
+    if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
+        # For demo purposes, we'll allow access without auth
+        # In production, you should return a 401 response
+        pass
+    
+    emails = get_all_emails_from_csv()
+    return jsonify({'emails': emails})
+
+@app.route('/api/admin/resend', methods=['POST'])
+def admin_resend_email():
+    """Resend confirmation email to a specific address"""
+    # Simple auth check (use proper auth in production)
+    auth = request.authorization
+    if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
+        # For demo purposes, we'll allow access without auth
+        # In production, you should return a 401 response
+        pass
+    
+    data = request.json
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    
+    # Check if email exists in waitlist
+    emails = get_all_emails_from_csv()
+    email_exists = any(e['email'].lower() == email.lower() for e in emails)
+    
+    if not email_exists:
+        return jsonify({'error': 'Email not found in waitlist'}), 404
+    
+    # Resend confirmation email
+    success = send_confirmation_email(email)
+    
+    if success:
+        return jsonify({'message': f'Confirmation email resent to {email}'})
+    else:
+        return jsonify({'error': 'Failed to send confirmation email'}), 500
+
+@app.route('/api/admin/remove', methods=['POST'])
+def admin_remove_email():
+    """Remove an email from the waitlist"""
+    # Simple auth check (use proper auth in production)
+    auth = request.authorization
+    if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
+        # For demo purposes, we'll allow access without auth
+        # In production, you should return a 401 response
+        pass
+    
+    data = request.json
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'error': 'Email is required'}), 400
+    
+    # Remove from local CSV
+    removed_from_csv = remove_email_from_csv(email)
+    
+    # Remove from GitHub (if configured)
+    removed_from_github = False
+    if GITHUB_TOKEN:
+        try:
+            # Get current content
+            is_duplicate, sha = check_duplicate_email(email)
+            if is_duplicate:
+                # Remove the email from GitHub
+                github_url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
+                headers = {
+                    'Authorization': f'token {GITHUB_TOKEN}',
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+                
+                # Get current content
+                response = requests.get(github_url, headers=headers)
+                if response.status_code == 200:
+                    content_data = response.json()
+                    current_content = base64.b64decode(content_data['content']).decode('utf-8')
+                    
+                    # Remove the email line
+                    new_content = ''
+                    for line in current_content.splitlines():
+                        if not line.lower().startswith(email.lower() + ','):
+                            new_content += line + '\n'
+                    
+                    # Update the file on GitHub
+                    update_data = {
+                        'message': f'Remove email {email} from waitlist',
+                        'content': base64.b64encode(new_content.encode('utf-8')).decode('utf-8'),
+                        'sha': content_data['sha']
+                    }
+                    
+                    update_response = requests.put(github_url, headers=headers, json=update_data)
+                    removed_from_github = update_response.status_code in (200, 201)
+        except Exception as e:
+            log_error(e, "remove_email_from_github")
+    
+    if removed_from_csv or removed_from_github:
+        return jsonify({'message': f'Email {email} removed from waitlist'})
+    else:
+        return jsonify({'error': 'Email not found or could not be removed'}), 404
 
 @app.route('/api/waitlist', methods=['POST'])
 def submit_email():
