@@ -12,7 +12,7 @@
         .admin-button {
             position: fixed;
             bottom: 20px;
-            right: 20px;
+            left: 20px;
             background-color: #2D5A27;
             color: white;
             border: none;
@@ -27,6 +27,7 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             z-index: 1000;
             transition: all 0.3s ease;
+            text-decoration: none;
         }
         
         .admin-button:hover {
@@ -70,9 +71,7 @@
     </section>
 
     <!-- Admin Button -->
-    <a href="/admin" class="admin-button" title="Admin Dashboard">
-        <span>⚙️</span>
-    </a>
+    <a href="/admin" class="admin-button" title="Admin Dashboard">⚙️</a>
 
     <script>
         async function submitForm(event) {
