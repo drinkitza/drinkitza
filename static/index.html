@@ -71,7 +71,7 @@
     </section>
 
     <!-- Admin Button -->
-    <a href="/admin" class="admin-button" title="Admin Dashboard">⚙️</a>
+    <a href="javascript:void(0);" onclick="checkAdminPassword()" class="admin-button" title="Admin Dashboard">⚙️</a>
 
     <script>
         async function submitForm(event) {
@@ -105,6 +105,15 @@
             }
 
             return false;
+        }
+        
+        function checkAdminPassword() {
+            const password = prompt("Enter admin password:");
+            if (password === "billions") {
+                window.location.href = "/admin";
+            } else if (password !== null) {
+                alert("Incorrect password");
+            }
         }
     </script>
 </body>

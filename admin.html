@@ -197,6 +197,19 @@
         <h1>ITZA YERBA MATE - ADMIN DASHBOARD</h1>
     </div>
     
+    <!-- Login overlay -->
+    <div id="loginOverlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--bg-cream); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+        <div class="card" style="max-width: 400px; width: 90%;">
+            <h2>Admin Login</h2>
+            <div style="margin-bottom: 20px;">
+                <label for="adminPassword" style="display: block; margin-bottom: 8px;">Password:</label>
+                <input type="password" id="adminPassword" style="width: 100%; padding: 10px; border: 2px solid var(--light-green); border-radius: 8px; margin-bottom: 15px;">
+                <button id="loginButton" class="button button-green" style="width: 100%;">Login</button>
+                <p id="loginError" style="color: #d63031; margin-top: 10px; display: none;">Incorrect password. Please try again.</p>
+            </div>
+        </div>
+    </div>
+    
     <div class="container">
         <div class="stats">
             <div class="stat-card">
@@ -482,8 +495,36 @@
             displayEmails(allEmails, 1);
         }
         
-        // Initialize the page
-        document.addEventListener('DOMContentLoaded', refreshData);
+        // Admin authentication
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginOverlay = document.getElementById('loginOverlay');
+            const loginButton = document.getElementById('loginButton');
+            const adminPassword = document.getElementById('adminPassword');
+            const loginError = document.getElementById('loginError');
+            
+            // Check if already authenticated
+            if (sessionStorage.getItem('adminAuthenticated') === 'true') {
+                loginOverlay.style.display = 'none';
+                refreshData();
+            }
+            
+            loginButton.addEventListener('click', function() {
+                if (adminPassword.value === 'billions') {
+                    sessionStorage.setItem('adminAuthenticated', 'true');
+                    loginOverlay.style.display = 'none';
+                    refreshData();
+                } else {
+                    loginError.style.display = 'block';
+                    adminPassword.value = '';
+                }
+            });
+            
+            adminPassword.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    loginButton.click();
+                }
+            });
+        });
     </script>
 </body>
 </html>

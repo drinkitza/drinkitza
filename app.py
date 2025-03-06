@@ -34,7 +34,7 @@ EMAIL_SERVICE_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
 
 # Simple admin authentication (for demo purposes only - use proper auth in production)
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'itzaadmin')
+ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'billions')
 
 def log_error(e, context=""):
     """Log errors with context for easier debugging"""
@@ -310,26 +310,14 @@ def static_files(path):
 @app.route('/api/admin/emails', methods=['GET'])
 def admin_get_emails():
     """Get all emails in the waitlist"""
-    # Simple auth check (use proper auth in production)
-    auth = request.authorization
-    if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
-        # For demo purposes, we'll allow access without auth
-        # In production, you should return a 401 response
-        pass
-    
+    # Authentication is now handled on the frontend
     emails = get_all_emails_from_csv()
     return jsonify({'emails': emails})
 
 @app.route('/api/admin/resend', methods=['POST'])
 def admin_resend_email():
     """Resend confirmation email to a specific address"""
-    # Simple auth check (use proper auth in production)
-    auth = request.authorization
-    if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
-        # For demo purposes, we'll allow access without auth
-        # In production, you should return a 401 response
-        pass
-    
+    # Authentication is now handled on the frontend
     data = request.json
     email = data.get('email')
     
@@ -354,13 +342,7 @@ def admin_resend_email():
 @app.route('/api/admin/remove', methods=['POST'])
 def admin_remove_email():
     """Remove an email from the waitlist"""
-    # Simple auth check (use proper auth in production)
-    auth = request.authorization
-    if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
-        # For demo purposes, we'll allow access without auth
-        # In production, you should return a 401 response
-        pass
-    
+    # Authentication is now handled on the frontend
     data = request.json
     email = data.get('email')
     
