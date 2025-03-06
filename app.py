@@ -19,10 +19,10 @@ REPO_NAME = 'drinkitza'
 FILE_PATH = 'emails/waitlist.csv'
 
 # Email configuration
-SMTP_SERVER = 'smtp.gmail.com'
-SMTP_PORT = 587
-SENDER_EMAIL = os.getenv('SENDER_EMAIL')
-SENDER_PASSWORD = os.getenv('SENDER_APP_PASSWORD')
+EMAIL_SERVICE_URL = os.getenv('EMAIL_SERVICE_URL', 'https://api.emailjs.com/api/v1.0/email/send')
+EMAIL_SERVICE_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID', 'your_user_id')
+EMAIL_SERVICE_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID', 'your_template_id')
+EMAIL_SERVICE_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN', 'your_access_token')
 
 def log_error(e, context=""):
     error_msg = f"""
@@ -37,11 +37,6 @@ def log_error(e, context=""):
 
 def send_confirmation_email(recipient_email):
     try:
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "Thanks for Pre-ordering Itza Yerba Mate!"
-
         # Read the HTML template
         template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'confirmation_template.html')
         print(f"Loading email template from: {template_path}")
@@ -52,7 +47,7 @@ def send_confirmation_email(recipient_email):
             html_content = f"""
             <html>
             <body>
-                <h1>Thanks for Pre-ordering Itza Yerba Mate!</h1>
+                <h1>Thanks for Joining Itza Yerba Mate's Pre-order Waitlist!</h1>
                 <p>We're excited to have you join our tribe of natural energy seekers.</p>
                 <p>Itza is nature's pre-workout - no powders, no bullshit, just as the gods intended.</p>
                 <p>Best regards,<br>The Itza Team</p>
@@ -67,40 +62,58 @@ def send_confirmation_email(recipient_email):
         # Replace placeholder with recipient email
         html_content = html_content.replace('{{email}}', recipient_email)
         
-        # Attach HTML version
-        msg.attach(MIMEText(html_content, 'html'))
-        
-        # Plain text alternative for email clients that don't support HTML
-        plain_text = """
-        Thank you for joining Itza Yerba Mate's pre-order waitlist!
-        
-        We're excited to have you join our tribe of natural energy seekers. Itza is nature's pre-workout - no powders, no bullshit, just as the gods intended.
-        
-        Our special blend combines premium yerba mate with powerful natural ingredients:
-        - YERBA MATE: The sacred plant of the Guaraní people, providing clean, sustained energy
-        - GINGER: Natural anti-inflammatory that enhances circulation and digestion
-        - MINT: Refreshing flavor that improves focus and mental clarity
-        - LEMON PEEL: Rich in antioxidants and adds a bright, citrus note
-        - GINSENG: Ancient adaptogen that boosts energy and reduces fatigue
-        - STAR ANISE: Aromatic spice with antimicrobial properties and distinctive flavor
-        
-        Unlike coffee and energy drinks that leave you anxious and jittery followed by a crash, Itza provides smooth, sustained energy that keeps you focused and productive all day long.
-        
-        We'll notify you when pre-orders open. In the meantime, follow us on social media for updates and special offers!
-        
-        Best regards,
-        The Itza Team
-        """
-        msg.attach(MIMEText(plain_text, 'plain'))
-
-        print(f"Sending confirmation email to: {recipient_email}")
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SENDER_EMAIL, SENDER_PASSWORD)
-            server.send_message(msg)
-            print("Email sent successfully!")
-        
-        return True
+        # Option 1: Use EmailJS service (no password required, but needs account setup)
+        try:
+            # Prepare the payload for EmailJS
+            payload = {
+                'user_id': EMAIL_SERVICE_USER_ID,
+                'service_id': 'default_service',
+                'template_id': EMAIL_SERVICE_TEMPLATE_ID,
+                'template_params': {
+                    'to_email': recipient_email,
+                    'html_content': html_content
+                },
+                'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+            }
+            
+            # Send the request to EmailJS
+            response = requests.post(EMAIL_SERVICE_URL, json=payload)
+            
+            if response.status_code == 200:
+                print(f"Email sent successfully to {recipient_email} via EmailJS!")
+                return True
+            else:
+                print(f"Failed to send email via EmailJS: {response.text}")
+                # Fall back to option 2 if EmailJS fails
+                raise Exception("EmailJS failed, falling back to alternative method")
+                
+        except Exception as e:
+            print(f"EmailJS error: {str(e)}")
+            # Fall back to option 2
+            
+            # Option 2: Store the email in a queue file for processing later
+            # This approach doesn't send the email immediately but stores it for later sending
+            queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
+            os.makedirs(queue_dir, exist_ok=True)
+            
+            email_data = {
+                'to': recipient_email,
+                'subject': "Thanks for Joining Itza Yerba Mate's Pre-order Waitlist!",
+                'html': html_content,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            # Create a unique filename
+            filename = f"{int(datetime.now().timestamp())}_{recipient_email.replace('@', '_at_')}.json"
+            file_path = os.path.join(queue_dir, filename)
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                import json
+                json.dump(email_data, f)
+                
+            print(f"Email queued for later sending: {file_path}")
+            return True
+            
     except Exception as e:
         log_error(e, "send_confirmation_email")
         print(f"Failed to send confirmation email to {recipient_email}: {str(e)}")

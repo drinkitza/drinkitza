@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Itza Yerba Mate - Waitlist Test</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #4CAF50, #FF9800);
+            color: white;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 {
+            margin-top: 0;
+            font-size: 2.5rem;
+        }
+        p {
+            font-size: 1.2rem;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #FF9800;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 12px 24px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #F57C00;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #F44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Join Itza Yerba Mate's Pre-order Waitlist</h1>
+        <p>Be the first to know when our natural energy drink becomes available for pre-order. No powders, no bullshit, just as the gods intended.</p>
+        
+        <form id="waitlistForm">
+            <div class="form-group">
+                <input type="email" id="email" placeholder="Your email address" required>
+            </div>
+            <button type="submit">JOIN WAITLIST</button>
+        </form>
+        
+        <div id="status"></div>
+    </div>
+
+    <script>
+        document.getElementById('waitlistForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const statusDiv = document.getElementById('status');
+            
+            statusDiv.innerHTML = 'Submitting...';
+            statusDiv.className = '';
+            
+            try {
+                const response = await fetch('/api/waitlist', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email }),
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = 'Success! Check your email for confirmation.';
+                    statusDiv.className = 'success';
+                    document.getElementById('email').value = '';
+                } else {
+                    statusDiv.innerHTML = `Error: ${result.message || 'Something went wrong'}`;
+                    statusDiv.className = 'error';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = 'Error: Could not connect to server';
+                statusDiv.className = 'error';
+                console.error('Error:', error);
+            }
+        });
+    </script>
+</body>
+</html>
