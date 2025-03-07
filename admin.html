@@ -181,6 +181,83 @@
             margin-bottom: 20px;
         }
         
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 20px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 20px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--primary-green);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--primary-green);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s, transform 0.3s;
+            max-width: 300px;
+        }
+        
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .notification-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .notification-message {
+            font-size: 14px;
+        }
+        
         @media (max-width: 768px) {
             .stats {
                 flex-direction: column;
@@ -210,6 +287,12 @@
         </div>
     </div>
     
+    <!-- Notification container -->
+    <div id="notification" class="notification">
+        <div class="notification-title">New Emails!</div>
+        <div id="notification-message" class="notification-message"></div>
+    </div>
+    
     <div class="container">
         <div class="stats">
             <div class="stat-card">
@@ -232,6 +315,13 @@
             <div class="export-buttons">
                 <button class="button" onclick="refreshData()">Refresh Data</button>
                 <button class="button button-green" onclick="exportCSV()">Export CSV</button>
+                <div style="display: inline-block; margin-left: 20px;">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoRefreshToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span id="autoRefreshStatus">Auto-refresh: ON (30s)</span>
+                </div>
             </div>
             
             <input type="text" id="searchBox" class="search-box" placeholder="Search emails..." onkeyup="filterEmails()">
@@ -492,7 +582,92 @@
         async function refreshData() {
             allEmails = await fetchEmails();
             updateStats(allEmails);
-            displayEmails(allEmails, 1);
+            displayEmails(allEmails, currentPage);
+        }
+        
+        // Show notification
+        function showNotification(message, duration = 5000) {
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notification-message');
+            
+            notificationMessage.textContent = message;
+            notification.classList.add('show');
+            
+            // Hide notification after duration
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, duration);
+        }
+        
+        // Auto-refresh timer
+        let autoRefreshInterval;
+        
+        // Start auto-refresh
+        function startAutoRefresh(intervalSeconds = 30) {
+            // Clear any existing interval
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            
+            let previousEmailCount = allEmails ? allEmails.length : 0;
+            
+            // Set new interval
+            autoRefreshInterval = setInterval(async () => {
+                console.log("Auto-refreshing email list...");
+                const newEmails = await fetchEmails();
+                
+                // Check if there are any new emails
+                if (JSON.stringify(newEmails) !== JSON.stringify(allEmails)) {
+                    console.log("New emails detected, updating display...");
+                    
+                    // Check if new emails were added
+                    if (newEmails.length > previousEmailCount) {
+                        const newEmailCount = newEmails.length - previousEmailCount;
+                        const newEmailsList = newEmails.slice(0, newEmailCount);
+                        
+                        // Create notification message
+                        let notificationMessage = `${newEmailCount} new email${newEmailCount > 1 ? 's' : ''} added:`;
+                        newEmailsList.forEach(email => {
+                            notificationMessage += `\n• ${email.email}`;
+                        });
+                        
+                        // Show notification
+                        showNotification(notificationMessage);
+                    }
+                    
+                    // Update previous count
+                    previousEmailCount = newEmails.length;
+                    
+                    // Update display
+                    allEmails = newEmails;
+                    updateStats(allEmails);
+                    displayEmails(allEmails, currentPage);
+                }
+            }, intervalSeconds * 1000);
+            
+            // Update UI
+            const statusElement = document.getElementById('autoRefreshStatus');
+            if (statusElement) {
+                statusElement.textContent = `Auto-refresh: ON (${intervalSeconds}s)`;
+            }
+            
+            console.log(`Auto-refresh enabled. Checking for new emails every ${intervalSeconds} seconds.`);
+        }
+        
+        // Stop auto-refresh
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                
+                // Update UI
+                const statusElement = document.getElementById('autoRefreshStatus');
+                if (statusElement) {
+                    statusElement.textContent = 'Auto-refresh: OFF';
+                }
+                
+                console.log("Auto-refresh disabled.");
+            }
         }
         
         // Admin authentication
@@ -506,6 +681,8 @@
             if (sessionStorage.getItem('adminAuthenticated') === 'true') {
                 loginOverlay.style.display = 'none';
                 refreshData();
+                // Start auto-refresh after authentication
+                startAutoRefresh();
             }
             
             loginButton.addEventListener('click', function() {
@@ -513,6 +690,8 @@
                     sessionStorage.setItem('adminAuthenticated', 'true');
                     loginOverlay.style.display = 'none';
                     refreshData();
+                    // Start auto-refresh after authentication
+                    startAutoRefresh();
                 } else {
                     loginError.style.display = 'block';
                     adminPassword.value = '';
@@ -524,6 +703,33 @@
                     loginButton.click();
                 }
             });
+            
+            // Add event listener to stop auto-refresh when page is hidden
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    stopAutoRefresh();
+                    // Update toggle to match state
+                    const toggle = document.getElementById('autoRefreshToggle');
+                    if (toggle) toggle.checked = false;
+                } else if (sessionStorage.getItem('adminAuthenticated') === 'true') {
+                    const toggle = document.getElementById('autoRefreshToggle');
+                    if (toggle && toggle.checked) {
+                        startAutoRefresh();
+                    }
+                }
+            });
+            
+            // Add event listener for auto-refresh toggle
+            const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+            if (autoRefreshToggle) {
+                autoRefreshToggle.addEventListener('change', function() {
+                    if (this.checked) {
+                        startAutoRefresh();
+                    } else {
+                        stopAutoRefresh();
+                    }
+                });
+            }
         });
     </script>
 </body>
