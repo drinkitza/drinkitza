@@ -144,6 +144,104 @@ def send_confirmation_email(recipient_email):
         log_error(e, "send_confirmation_email")
         return False
 
+def send_educational_email(recipient_email):
+    """Send the educational email about yerba mate history and benefits"""
+    try:
+        # First try EmailJS (primary method)
+        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
+            try:
+                emailjs_data = {
+                    'service_id': EMAIL_SERVICE_URL,
+                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
+                    'user_id': EMAIL_SERVICE_USER_ID,
+                    'template_params': {
+                        'to_email': recipient_email,
+                        'email': recipient_email,  # For template replacement
+                        'template_type': 'educational'  # Flag to use educational template
+                    },
+                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+                }
+                
+                headers = {'Content-Type': 'application/json'}
+                response = requests.post(
+                    'https://api.emailjs.com/api/v1.0/email/send',
+                    headers=headers,
+                    json=emailjs_data
+                )
+                
+                if response.status_code == 200:
+                    print(f"Educational email sent successfully to {recipient_email} via EmailJS")
+                    return True
+                else:
+                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
+                    # Fall back to SMTP or queue
+            except Exception as e:
+                print(f"EmailJS error: {str(e)}")
+                # Fall back to SMTP or queue
+        
+        # Create a multipart message for SMTP or queue
+        msg = MIMEMultipart('alternative')
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        msg['Subject'] = "Discover the Magic of Yerba Mate - Itza's Educational Guide"
+
+        # Read the HTML template
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'educational_template.html')
+        
+        if not os.path.exists(template_path):
+            print(f"Warning: Educational email template not found at {template_path}")
+            html_content = "<p>Learn about the amazing benefits of yerba mate!</p>"
+        else:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+        
+        # Replace placeholders
+        html_content = html_content.replace('{{email}}', recipient_email)
+        
+        # Create HTML version
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        # Try to send email via SMTP as second option
+        if SENDER_APP_PASSWORD:
+            try:
+                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                server.starttls()
+                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.send_message(msg)
+                server.quit()
+                print(f"Educational email sent successfully to {recipient_email} via SMTP")
+                return True
+            except Exception as e:
+                print(f"SMTP sending failed: {str(e)}")
+                # Fall back to queue
+        
+        # Queue the email if both EmailJS and SMTP fail
+        queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
+        os.makedirs(queue_dir, exist_ok=True)
+        
+        email_data = {
+            'to': recipient_email,
+            'from': SENDER_EMAIL,
+            'subject': msg['Subject'],
+            'html': html_content,
+            'type': 'educational'
+        }
+        
+        timestamp = str(int(time.time()))
+        filename = f"{timestamp}_educational_{recipient_email.replace('@', '_at_')}.json"
+        filepath = os.path.join(queue_dir, filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(email_data, f, indent=2)
+        
+        print(f"Educational email queued for {recipient_email} at {filepath}")
+        return True
+        
+    except Exception as e:
+        log_error(e, "send_educational_email")
+        return False
+
 def check_duplicate_email(email):
     """Check if email already exists in the waitlist"""
     url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
@@ -414,6 +512,52 @@ def admin_remove_email():
         return jsonify({'message': f'Email {email} removed from waitlist'})
     else:
         return jsonify({'error': 'Email not found or could not be removed'}), 404
+
+@app.route('/api/admin/send-educational-email', methods=['POST'])
+def admin_send_educational_email():
+    """Send educational email to all subscribers or a specific email"""
+    # Authentication is handled on the frontend
+    data = request.json
+    target_email = data.get('email')  # Optional, if None, send to all
+    
+    success_count = 0
+    failure_count = 0
+    
+    # Read all emails from CSV
+    all_emails = []
+    try:
+        csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                all_emails.append(row['email'])
+    except Exception as e:
+        log_error(e, "admin_send_educational_email - reading CSV")
+        return jsonify({'error': 'Failed to read email list'}), 500
+    
+    # If target email is specified, only send to that email
+    if target_email:
+        if target_email in all_emails:
+            if send_educational_email(target_email):
+                success_count += 1
+            else:
+                failure_count += 1
+        else:
+            return jsonify({'error': 'Email not found in waitlist'}), 404
+    else:
+        # Send to all emails
+        for email in all_emails:
+            if send_educational_email(email):
+                success_count += 1
+            else:
+                failure_count += 1
+    
+    return jsonify({
+        'message': f'Educational email sent to {success_count} recipients',
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'total_count': len(all_emails) if not target_email else 1
+    })
 
 @app.route('/api/waitlist', methods=['POST'])
 def submit_email():

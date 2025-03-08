@@ -144,6 +144,15 @@
             background-color: #234620;
         }
         
+        .button-orange {
+            background-color: #FF7F3F;
+            color: white;
+        }
+        
+        .button-orange:hover {
+            background-color: #E56E2E;
+        }
+        
         .actions {
             display: flex;
             gap: 10px;
@@ -315,6 +324,7 @@
             <div class="export-buttons">
                 <button class="button" onclick="refreshData()">Refresh Data</button>
                 <button class="button button-green" onclick="exportCSV()">Export CSV</button>
+                <button class="button button-orange" onclick="sendEducationalEmail()">Send Educational Email</button>
                 <div style="display: inline-block; margin-left: 20px;">
                     <label class="toggle-switch">
                         <input type="checkbox" id="autoRefreshToggle" checked>
@@ -433,7 +443,13 @@
                 removeButton.textContent = 'Remove';
                 removeButton.onclick = () => removeEmail(email.email);
                 
+                const educateButton = document.createElement('button');
+                educateButton.className = 'button button-orange';
+                educateButton.textContent = 'Educate';
+                educateButton.onclick = () => sendEducationalEmailToOne(email.email);
+                
                 actionsCell.appendChild(resendButton);
+                actionsCell.appendChild(educateButton);
                 actionsCell.appendChild(removeButton);
                 
                 row.appendChild(emailCell);
@@ -597,6 +613,62 @@
             setTimeout(() => {
                 notification.classList.remove('show');
             }, duration);
+        }
+        
+        // Send educational email to all subscribers
+        async function sendEducationalEmail() {
+            if (!confirm("Are you sure you want to send the educational email about yerba mate to ALL subscribers?")) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-educational-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! ${data.message}\nSuccessful: ${data.success_count}\nFailed: ${data.failure_count}\nTotal: ${data.total_count}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending educational email:', error);
+                alert('Failed to send educational email. Check console for details.');
+            }
+        }
+        
+        // Send educational email to a specific subscriber
+        async function sendEducationalEmailToOne(email) {
+            if (!confirm(`Are you sure you want to send the educational email to ${email}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-educational-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! Educational email sent to ${email}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending educational email:', error);
+                alert('Failed to send educational email. Check console for details.');
+            }
         }
         
         // Auto-refresh timer
