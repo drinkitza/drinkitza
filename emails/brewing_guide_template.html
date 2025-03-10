@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Brew Yerba Mate - Itza's Practical Guide</title>
+    <style>
+        /* Import web fonts with fallbacks for email clients that don't support them */
+        @import url('https://fonts.googleapis.com/css2?family=Caesar+Dressing&family=Inter:wght@400;500;600;700&display=swap');
+        
+        /* Reset styles for email clients */
+        body, p, h1, h2, h3, h4, h5, h6, table, td {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', Arial, sans-serif;
+        }
+        
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #FFFAF5;
+            color: #2D5A27;
+            width: 100% !important;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        
+        /* Use table-based layout for better email client compatibility */
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #FFFFFF;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background-color: #4A7856;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            color: #FFFFFF !important;
+            font-size: 48px;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            font-weight: bold;
+            text-shadow: 4px 4px 0px #8FBC94;
+        }
+        
+        .header h2 {
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            color: #FF7F3F !important;
+            font-size: 28px;
+            margin-top: 10px;
+            font-weight: bold;
+            display: inline-block;
+            padding: 5px 10px;
+        }
+        
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+            background-color: #FFFAF5;
+        }
+        
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: rgba(143, 188, 148, 0.1);
+            border-radius: 12px;
+        }
+        
+        .section h3 {
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            color: #2D5A27 !important;
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            height: 0;
+            overflow: hidden;
+            max-width: 100%;
+            margin: 20px 0;
+            border-radius: 12px;
+        }
+        
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+            border: 2px solid #8FBC94;
+        }
+        
+        .video-fallback {
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto;
+            border-radius: 12px;
+            border: 2px solid #8FBC94;
+        }
+        
+        .video-fallback img {
+            width: 100%;
+            border-radius: 10px;
+        }
+        
+        .video-fallback-text {
+            background-color: #FF7F3F;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            border-radius: 0 0 10px 10px;
+            font-weight: bold;
+        }
+        
+        .brewing-step {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px;
+            background-color: #FFFFFF;
+            border-radius: 10px;
+            width: 80%;
+            text-align: left;
+            border: 1px solid #E0E0E0;
+        }
+        
+        .step-number {
+            display: inline-block;
+            background-color: #FF7F3F;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        
+        .step-title {
+            font-weight: 700;
+            color: #2D5A27 !important;
+            font-size: 18px;
+            margin-bottom: 5px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        .step-desc {
+            color: #4A7856 !important;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .benefit-box {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px;
+            background-color: #FFFFFF;
+            border-radius: 10px;
+            width: 80%;
+            text-align: left;
+            border: 1px solid #E0E0E0;
+        }
+        
+        .benefit-title {
+            font-weight: 700;
+            color: #2D5A27 !important;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .benefit-desc {
+            color: #4A7856 !important;
+            font-size: 14px;
+        }
+        
+        .promo-box {
+            background-color: rgba(255, 127, 63, 0.1);
+            border: 2px dashed #FF7F3F;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 30px 0;
+            position: relative;
+        }
+        
+        .promo-label {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #FF7F3F;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background-color: #FF7F3F;
+            color: white !important;
+            font-weight: 600;
+            padding: 15px 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            margin: 30px 0;
+            border: 0;
+            text-align: center;
+        }
+        
+        .footer {
+            background-color: #2D5A27;
+            color: white !important;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .social-links {
+            margin: 15px 0;
+        }
+        
+        .social-links a {
+            color: white !important;
+            margin: 0 10px;
+            text-decoration: none;
+        }
+        
+        .disclaimer {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 15px;
+            color: #FFFFFF !important;
+        }
+        
+        .highlight-orange {
+            color: #FF7F3F !important;
+            font-weight: 700;
+            background-color: rgba(255, 127, 63, 0.1);
+            padding: 0 3px;
+        }
+        
+        .highlight-green {
+            color: #2D5A27 !important;
+            font-weight: 700;
+            background-color: rgba(143, 188, 148, 0.2);
+            padding: 0 3px;
+        }
+        
+        .zoom-text {
+            font-size: 24px;
+            font-weight: 700;
+            color: #FF7F3F !important;
+            margin: 15px 0;
+            letter-spacing: 1px;
+        }
+        
+        /* Responsive styles */
+        @media screen and (max-width: 600px) {
+            .email-container {
+                width: 100% !important;
+            }
+            
+            .brewing-step, .benefit-box {
+                width: 90% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width: 600px; margin: auto;">
+        <tr>
+            <td>
+                <div class="email-container">
+                    <div class="header">
+                        <h1>ITZA</h1>
+                        <h2>YERBA MATE</h2>
+                    </div>
+                    
+                    <div class="content">
+                        <h2 style="font-family: 'Inter', Arial, sans-serif; color: #2D5A27; margin-bottom: 20px;">HOW TO BREW YERBA MATE</h2>
+                        
+                        <div class="promo-box">
+                            <div class="promo-label">LIMITED TIME OFFER</div>
+                            <p style="font-size: 18px; margin-top: 10px; margin-bottom: 10px;">
+                                <strong>FREE Traditional Gourd & Bombilla</strong> with the first 50 orders!
+                            </p>
+                            <p style="font-size: 14px;">
+                                Experience yerba mate the authentic way with your very own drinking set. 
+                                Perfect for brewing mate as shown in our guide below.
+                            </p>
+                        </div>
+                        
+                        <p style="font-size: 18px; margin-bottom: 20px;">
+                            Ready to experience yerba mate the traditional way? Watch this quick guide on how to prepare it like a true South American!
+                        </p>
+                        
+                        <!-- YouTube Video Embed -->
+                        <div class="video-container">
+                            <iframe src="https://www.youtube.com/embed/9OuQfmamdLc" title="How to Brew Yerba Mate" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>
+                        
+                        <!-- Fallback for email clients that don't support iframes -->
+                        <div class="video-fallback">
+                            <a href="https://www.youtube.com/shorts/9OuQfmamdLc" target="_blank">
+                                <img src="https://img.youtube.com/vi/9OuQfmamdLc/maxresdefault.jpg" alt="How to Brew Yerba Mate">
+                                <div class="video-fallback-text">Click to Watch on YouTube</div>
+                            </a>
+                        </div>
+                        
+                        <div class="section">
+                            <h3>TRADITIONAL BREWING STEPS</h3>
+                            
+                            <div class="brewing-step">
+                                <span class="step-number">1</span>
+                                <span class="step-title">FILL YOUR GOURD</span>
+                                <div class="step-desc">Fill your mate gourd about 2/3 full with yerba mate leaves. Shake gently to settle the dust.</div>
+                            </div>
+                            
+                            <div class="brewing-step">
+                                <span class="step-number">2</span>
+                                <span class="step-title">TILT & MOISTEN</span>
+                                <div class="step-desc">Tilt the gourd at a 45° angle and pour a small amount of cool water (never boiling!) to moisten the leaves.</div>
+                            </div>
+                            
+                            <div class="brewing-step">
+                                <span class="step-number">3</span>
+                                <span class="step-title">INSERT BOMBILLA</span>
+                                <div class="step-desc">Insert the bombilla (metal straw) along the side of the gourd, with the filtered end at the bottom.</div>
+                            </div>
+                            
+                            <div class="brewing-step">
+                                <span class="step-number">4</span>
+                                <span class="step-title">ADD WARM WATER</span>
+                                <div class="step-desc">Pour warm water (150-170°F, never boiling) into the empty space. Let it steep for a moment.</div>
+                            </div>
+                            
+                            <div class="brewing-step">
+                                <span class="step-number">5</span>
+                                <span class="step-title">SIP & REFILL</span>
+                                <div class="step-desc">Sip through the bombilla until you hear a gurgling sound, then refill and pass to the next person!</div>
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <h3>ALTERNATIVE BREWING METHODS</h3>
+                            <p style="margin-bottom: 20px;">
+                                Don't have a traditional gourd and bombilla? No problem! Yerba mate is versatile and can be prepared in several ways:
+                            </p>
+                            
+                            <div class="brewing-step">
+                                <span class="step-title">FRENCH PRESS METHOD</span>
+                                <div class="step-desc">Add 1-2 tablespoons of yerba mate to your French press. Pour hot (not boiling) water and steep for 4-5 minutes before pressing.</div>
+                            </div>
+                            
+                            <div class="brewing-step">
+                                <span class="step-title">TEA INFUSER METHOD</span>
+                                <div class="step-desc">Place yerba mate in a tea infuser or tea bag. Steep in hot water for 3-5 minutes, just like you would with regular tea.</div>
+                            </div>
+                            
+                            <div class="brewing-step">
+                                <span class="step-title">COLD BREW METHOD</span>
+                                <div class="step-desc">Add yerba mate to cold water and refrigerate overnight. Strain and enjoy a refreshing, less bitter version with all the benefits.</div>
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <h3>THE POWERFUL BENEFITS OF YERBA MATE</h3>
+                            
+                            <div class="benefit-box">
+                                <div class="benefit-title">SUSTAINED ENERGY</div>
+                                <div class="benefit-desc">Unlike coffee's spike-and-crash effect, yerba mate provides 4-6 hours of smooth, jitter-free energy thanks to its balanced combination of caffeine, theobromine, and theophylline.</div>
+                            </div>
+                            
+                            <div class="benefit-box">
+                                <div class="benefit-title">ENHANCED FOCUS & MENTAL CLARITY</div>
+                                <div class="benefit-desc">The unique combination of stimulants and nutrients in yerba mate improves concentration, memory, and cognitive performance without the anxiety often associated with other caffeinated drinks.</div>
+                            </div>
+                            
+                            <div class="benefit-box">
+                                <div class="benefit-title">FAT BURNING & METABOLISM BOOST</div>
+                                <div class="benefit-desc">Research shows yerba mate increases your body's reliance on fat for fuel, helps maintain healthy blood sugar levels, and can boost your metabolic rate—making it the perfect companion for weight management.</div>
+                            </div>
+                        </div>
+                        
+                        <p style="font-size: 18px; margin: 30px 0;">
+                            At Itza, we've combined premium yerba mate with <span class="highlight-orange">five other powerful natural ingredients</span> to create the perfect energy drink – <span class="highlight-green">no powders, no bullshit, just as the gods intended</span>.
+                        </p>
+                        
+                        <div class="zoom-text">GET YOUR FREE GOURD & BOMBILLA!</div>
+                        
+                        <p style="font-size: 16px; margin-bottom: 20px;">
+                            Remember, the first 50 orders will receive a FREE traditional mate gourd and bombilla—everything you need to experience yerba mate the authentic way!
+                        </p>
+                        
+                        <a href="https://drinkitza.com" class="cta-button">PRE-ORDER NOW</a>
+                        
+                        <p style="font-size: 14px; color: #4A7856; margin-top: 20px;">
+                            Stay tuned for more brewing tips and yerba mate recipes. We can't wait to share Itza with you!
+                        </p>
+                    </div>
+                    
+                    <div class="footer">
+                        <div class="social-links">
+                            <a href="#">Instagram</a> | 
+                            <a href="#">Twitter</a> | 
+                            <a href="#">TikTok</a>
+                        </div>
+                        
+                        <p>© 2025 Itza Yerba Mate. All rights reserved.</p>
+                        
+                        <div class="disclaimer">
+                            This email was sent to {{email}} because you joined Itza Yerba Mate's pre-order waitlist.<br>
+                            To unsubscribe, <a href="#" style="color: #8FBC94;">click here</a>.
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

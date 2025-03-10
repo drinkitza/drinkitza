@@ -153,6 +153,15 @@
             background-color: #E56E2E;
         }
         
+        .button-blue {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .button-blue:hover {
+            background-color: #2980b9;
+        }
+        
         .actions {
             display: flex;
             gap: 10px;
@@ -325,6 +334,7 @@
                 <button class="button" onclick="refreshData()">Refresh Data</button>
                 <button class="button button-green" onclick="exportCSV()">Export CSV</button>
                 <button class="button button-orange" onclick="sendEducationalEmail()">Send Educational Email</button>
+                <button class="button button-blue" onclick="sendBrewingGuide()">Send Brewing Guide</button>
                 <div style="display: inline-block; margin-left: 20px;">
                     <label class="toggle-switch">
                         <input type="checkbox" id="autoRefreshToggle" checked>
@@ -438,18 +448,24 @@
                 resendButton.textContent = 'Resend Email';
                 resendButton.onclick = () => resendConfirmation(email.email);
                 
-                const removeButton = document.createElement('button');
-                removeButton.className = 'button';
-                removeButton.textContent = 'Remove';
-                removeButton.onclick = () => removeEmail(email.email);
-                
                 const educateButton = document.createElement('button');
                 educateButton.className = 'button button-orange';
                 educateButton.textContent = 'Educate';
                 educateButton.onclick = () => sendEducationalEmailToOne(email.email);
                 
+                const brewingButton = document.createElement('button');
+                brewingButton.className = 'button button-blue';
+                brewingButton.textContent = 'Brewing';
+                brewingButton.onclick = () => sendBrewingGuideToOne(email.email);
+                
+                const removeButton = document.createElement('button');
+                removeButton.className = 'button';
+                removeButton.textContent = 'Remove';
+                removeButton.onclick = () => removeEmail(email.email);
+                
                 actionsCell.appendChild(resendButton);
                 actionsCell.appendChild(educateButton);
+                actionsCell.appendChild(brewingButton);
                 actionsCell.appendChild(removeButton);
                 
                 row.appendChild(emailCell);
@@ -668,6 +684,62 @@
             } catch (error) {
                 console.error('Error sending educational email:', error);
                 alert('Failed to send educational email. Check console for details.');
+            }
+        }
+        
+        // Send brewing guide email to all subscribers
+        async function sendBrewingGuide() {
+            if (!confirm("Are you sure you want to send the brewing guide email with the FREE gourd & bombilla offer to ALL subscribers?")) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-brewing-guide', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! ${data.message}\nSuccessful: ${data.success_count}\nFailed: ${data.failure_count}\nTotal: ${data.total_count}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending brewing guide email:', error);
+                alert('Failed to send brewing guide email. Check console for details.');
+            }
+        }
+        
+        // Send brewing guide email to a specific subscriber
+        async function sendBrewingGuideToOne(email) {
+            if (!confirm(`Are you sure you want to send the brewing guide email to ${email}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-brewing-guide', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! Brewing guide email sent to ${email}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending brewing guide email:', error);
+                alert('Failed to send brewing guide email. Check console for details.');
             }
         }
         
