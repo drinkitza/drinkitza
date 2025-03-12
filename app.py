@@ -246,16 +246,29 @@ def send_brewing_guide(recipient_email):
     """Send the brewing guide email"""
     try:
         # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
+        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
             try:
+                # Read the HTML template
+                template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'brewing_guide_template.html')
+                
+                if not os.path.exists(template_path):
+                    print(f"Warning: Brewing guide email template not found at {template_path}")
+                    html_content = "<p>Learn how to brew yerba mate!</p>"
+                else:
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        html_content = f.read()
+                
+                # Replace placeholders
+                html_content = html_content.replace('{{email}}', recipient_email)
+                
                 emailjs_data = {
                     'service_id': EMAIL_SERVICE_URL,
                     'template_id': EMAIL_SERVICE_TEMPLATE_ID,
                     'user_id': EMAIL_SERVICE_USER_ID,
                     'template_params': {
                         'to_email': recipient_email,
-                        'email': recipient_email,  # For template replacement
-                        'template_type': 'brewing_guide'  # Flag to use brewing guide template
+                        'subject': "How to Brew Yerba Mate + FREE Gourd & Bombilla Offer!",
+                        'html_content': html_content
                     },
                     'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
                 }
@@ -301,7 +314,7 @@ def send_brewing_guide(recipient_email):
         msg.attach(html_part)
         
         # Try to send email via SMTP as second option
-        if SENDER_APP_PASSWORD:
+        if SENDER_EMAIL and SENDER_APP_PASSWORD:
             try:
                 server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
                 server.starttls()
@@ -337,7 +350,120 @@ def send_brewing_guide(recipient_email):
         return True
         
     except Exception as e:
+        print(f"Error sending brewing guide email: {str(e)}")
         log_error(e, "send_brewing_guide")
+        return False
+
+def send_milestone_email(recipient_email):
+    """Send the 100 milestone celebration email"""
+    try:
+        # First try EmailJS (primary method)
+        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
+            try:
+                # Read the HTML template
+                template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'milestone_template.html')
+                
+                if not os.path.exists(template_path):
+                    print(f"Warning: Milestone email template not found at {template_path}")
+                    html_content = "<p>Congratulations on being part of our first 100 customers!</p>"
+                else:
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        html_content = f.read()
+                
+                # Replace placeholders
+                html_content = html_content.replace('{{email}}', recipient_email)
+                
+                emailjs_data = {
+                    'service_id': EMAIL_SERVICE_URL,
+                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
+                    'user_id': EMAIL_SERVICE_USER_ID,
+                    'template_params': {
+                        'to_email': recipient_email,
+                        'subject': "Celebrating 100 Customers! Your Free Gift is Confirmed",
+                        'html_content': html_content
+                    },
+                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+                }
+                
+                headers = {'Content-Type': 'application/json'}
+                response = requests.post(
+                    'https://api.emailjs.com/api/v1.0/email/send',
+                    headers=headers,
+                    json=emailjs_data
+                )
+                
+                if response.status_code == 200:
+                    print(f"Milestone email sent successfully to {recipient_email} via EmailJS")
+                    return True
+                else:
+                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
+                    # Fall back to SMTP or queue
+            except Exception as e:
+                print(f"EmailJS error: {str(e)}")
+                # Fall back to SMTP or queue
+        
+        # Create a multipart message for SMTP or queue
+        msg = MIMEMultipart('alternative')
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        msg['Subject'] = "Celebrating 100 Customers! Your Free Gift is Confirmed"
+
+        # Read the HTML template
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'milestone_template.html')
+        
+        if not os.path.exists(template_path):
+            print(f"Warning: Milestone email template not found at {template_path}")
+            html_content = "<p>Congratulations on being part of our first 100 customers!</p>"
+        else:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+        
+        # Replace placeholders
+        html_content = html_content.replace('{{email}}', recipient_email)
+        
+        # Create HTML version
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        # Try to send email via SMTP as second option
+        if SENDER_EMAIL and SENDER_APP_PASSWORD:
+            try:
+                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                server.starttls()
+                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.send_message(msg)
+                server.quit()
+                print(f"Milestone email sent successfully to {recipient_email} via SMTP")
+                return True
+            except Exception as e:
+                print(f"SMTP sending failed: {str(e)}")
+                # Fall back to queue
+        
+        # Queue the email if both EmailJS and SMTP fail
+        queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
+        os.makedirs(queue_dir, exist_ok=True)
+        
+        email_data = {
+            'to': recipient_email,
+            'from': SENDER_EMAIL,
+            'subject': msg['Subject'],
+            'html': html_content,
+            'type': 'milestone'
+        }
+        
+        timestamp = str(int(time.time()))
+        filename = f"{timestamp}_milestone_{recipient_email.replace('@', '_at_')}.json"
+        filepath = os.path.join(queue_dir, filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(email_data, f, indent=2)
+        
+        print(f"Milestone email queued for {recipient_email} at {filepath}")
+        return True
+        
+    except Exception as e:
+        print(f"Error sending milestone email: {str(e)}")
+        log_error(e, "send_milestone_email")
         return False
 
 def check_duplicate_email(email):
@@ -672,22 +798,21 @@ def admin_send_brewing_guide():
     try:
         csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
         with open(csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
+            reader = csv.reader(f)
+            next(reader, None)  # Skip header row if it exists
             for row in reader:
-                all_emails.append(row['email'])
+                if row and len(row) > 0 and '@' in row[0]:
+                    all_emails.append(row[0])
     except Exception as e:
         log_error(e, "admin_send_brewing_guide - reading CSV")
-        return jsonify({'error': 'Failed to read email list'}), 500
+        return jsonify({'error': f'Failed to read email list: {str(e)}'}), 500
     
     # If target email is specified, only send to that email
     if target_email:
-        if target_email in all_emails:
-            if send_brewing_guide(target_email):
-                success_count += 1
-            else:
-                failure_count += 1
+        if send_brewing_guide(target_email):
+            success_count += 1
         else:
-            return jsonify({'error': 'Email not found in waitlist'}), 404
+            failure_count += 1
     else:
         # Send to all emails
         for email in all_emails:
@@ -698,6 +823,51 @@ def admin_send_brewing_guide():
     
     return jsonify({
         'message': f'Brewing guide email sent to {success_count} recipients',
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'total_count': len(all_emails) if not target_email else 1
+    })
+
+@app.route('/api/admin/send-milestone-email', methods=['POST'])
+def admin_send_milestone_email():
+    """Send milestone celebration email to all subscribers or a specific email"""
+    # Authentication is handled on the frontend
+    data = request.json
+    target_email = data.get('email')  # Optional, if None, send to all
+    
+    success_count = 0
+    failure_count = 0
+    
+    # Read all emails from CSV
+    all_emails = []
+    try:
+        csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            next(reader, None)  # Skip header row if it exists
+            for row in reader:
+                if row and len(row) > 0 and '@' in row[0]:
+                    all_emails.append(row[0])
+    except Exception as e:
+        log_error(e, "admin_send_milestone_email - reading CSV")
+        return jsonify({'error': f'Failed to read email list: {str(e)}'}), 500
+    
+    # If target email is specified, only send to that email
+    if target_email:
+        if send_milestone_email(target_email):
+            success_count += 1
+        else:
+            failure_count += 1
+    else:
+        # Send to all emails
+        for email in all_emails:
+            if send_milestone_email(email):
+                success_count += 1
+            else:
+                failure_count += 1
+    
+    return jsonify({
+        'message': f'Milestone celebration email sent to {success_count} recipients',
         'success_count': success_count,
         'failure_count': failure_count,
         'total_count': len(all_emails) if not target_email else 1

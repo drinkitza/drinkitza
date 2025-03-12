@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Congratulations! You're Part of the First Itza Batch</title>
+    <style>
+        /* Import web fonts with fallbacks for email clients that don't support them */
+        @import url('https://fonts.googleapis.com/css2?family=Caesar+Dressing&family=Inter:wght@400;500;600;700&display=swap');
+        
+        /* Reset styles for email clients */
+        body, p, h1, h2, h3, h4, h5, h6, table, td {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', Arial, sans-serif;
+        }
+        
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #FFFAF5;
+            color: #2D5A27;
+            width: 100% !important;
+            -webkit-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        
+        /* Use table-based layout for better email client compatibility */
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #FFFFFF;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background-color: #4A7856;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            color: #FFFFFF !important;
+            font-size: 48px;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            font-weight: bold;
+            text-shadow: 4px 4px 0px #8FBC94;
+        }
+        
+        .header h2 {
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            color: #FF7F3F !important;
+            font-size: 28px;
+            margin-top: 10px;
+            font-weight: bold;
+            display: inline-block;
+            padding: 5px 10px;
+        }
+        
+        .content {
+            padding: 40px 30px;
+            text-align: center;
+            background-color: #FFFAF5;
+        }
+        
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: rgba(143, 188, 148, 0.1);
+            border-radius: 12px;
+        }
+        
+        .section h3 {
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            color: #2D5A27 !important;
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .milestone-banner {
+            background-color: rgba(255, 127, 63, 0.1);
+            border: 2px solid #FF7F3F;
+            padding: 20px;
+            border-radius: 16px;
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .milestone-banner h2 {
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            color: #FF7F3F !important;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .milestone-banner:before {
+            content: "100";
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            position: absolute;
+            font-size: 120px;
+            color: rgba(255, 127, 63, 0.05);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+        }
+        
+        .milestone-banner-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .product-feature {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px;
+            background-color: #FFFFFF;
+            border-radius: 10px;
+            width: 80%;
+            text-align: left;
+            border: 1px solid #E0E0E0;
+        }
+        
+        .feature-title {
+            font-weight: 700;
+            color: #2D5A27 !important;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .feature-desc {
+            color: #4A7856 !important;
+            font-size: 14px;
+        }
+        
+        .special-gift {
+            background-color: #2D5A27;
+            color: white !important;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        
+        .special-gift h3 {
+            color: #FF7F3F !important;
+            font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .special-gift p {
+            color: white !important;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background-color: #FF7F3F;
+            color: white !important;
+            font-weight: 600;
+            padding: 15px 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            margin: 30px 0;
+            border: 0;
+            text-align: center;
+        }
+        
+        .footer {
+            background-color: #2D5A27;
+            color: white !important;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .social-links {
+            margin: 15px 0;
+        }
+        
+        .social-links a {
+            color: white !important;
+            margin: 0 10px;
+            text-decoration: none;
+        }
+        
+        .disclaimer {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 15px;
+            color: #FFFFFF !important;
+        }
+        
+        .highlight-text {
+            color: #FF7F3F !important;
+            font-weight: 700;
+        }
+        
+        .confetti-img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+        }
+        
+        .ingredient-box {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        .ingredient {
+            background-color: white;
+            border-radius: 10px;
+            padding: 10px 15px;
+            margin: 5px;
+            font-weight: 600;
+            color: #2D5A27;
+            border: 1px solid #E0E0E0;
+            display: inline-block;
+        }
+        
+        @media screen and (max-width: 600px) {
+            .email-container {
+                width: 100% !important;
+            }
+            
+            .product-feature {
+                width: 90% !important;
+            }
+            
+            .ingredient-box {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .ingredient {
+                width: 80%;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" width="100%" style="max-width: 600px; margin: auto;">
+        <tr>
+            <td>
+                <div class="email-container">
+                    <div class="header">
+                        <h1>ITZA</h1>
+                        <h2>YERBA MATE</h2>
+                    </div>
+                    
+                    <div class="content">
+                        
+                        <div class="milestone-banner">
+                            <div class="milestone-banner-content">
+                                <h2>WE DID IT!</h2>
+                                <p style="font-size: 20px; font-weight: 600; margin-bottom: 10px;">
+                                    100 FOUNDING MEMBERS
+                                </p>
+                                <p style="font-size: 16px;">
+                                    Our goal was 50 pre-orders.<br>
+                                    You helped us <span class="highlight-text">DOUBLE</span> that!
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div style="background-color: #FF7F3F; color: white; padding: 15px; border-radius: 10px; margin: 20px 0 25px 0; text-align: center;">
+                            <p style="font-size: 20px; font-weight: 700; margin: 0;">
+                                ORDERING WILL BE AVAILABLE LATER THIS WEEK!
+                            </p>
+                            <p style="font-size: 16px; margin: 5px 0 0 0;">
+                                Be ready to secure your order as soon as we open the store.
+                            </p>
+                        </div>
+                        
+                        <p style="font-size: 18px; margin: 30px 0 15px 0;">
+                            <strong>Congratulations, {{email}}!</strong> You're officially part of the <span class="highlight-text">first batch</span> of Itza Yerba Mate drinkers. We're thrilled to have you join us on this journey.
+                        </p>
+                        
+                        <div class="special-gift">
+                            <h3>YOUR EXCLUSIVE FOUNDING MEMBER GIFT</h3>
+                            <p>
+                                As a special thank you for being among our first 100 customers, we're including a <strong>FREE traditional mate gourd and bombilla</strong> with your order!
+                            </p>
+                            <p>
+                                This authentic drinking set (a $50 value) is the perfect way to experience yerba mate as it has been enjoyed for centuries.
+                            </p>
+                        </div>
+                        
+                        <p style="font-size: 16px; margin-bottom: 20px;">
+                            What began as a passion project has now become a reality thanks to incredible people like you. Your early support means everything to us, and we can't wait to deliver a product that exceeds your expectations.
+                        </p>
+
+                        <div style="background-color: #2D5A27; color: white; padding: 15px; border-radius: 10px; margin: 0 0 25px 0;">
+                            <p style="font-size: 16px; font-weight: 700; margin: 0;">
+                                A PERSONAL NOTE FROM NICO, FOUNDER OF ITZA
+                            </p>
+                            <p style="font-size: 14px; margin: 10px 0 0 0; line-height: 1.5;">
+                                I want to personally thank you for believing in Itza. Building a connection with our early supporters is incredibly important to me. I'd love to hear your feedback once you try our yerba mate!
+                            </p>
+                            <p style="font-size: 14px; margin: 10px 0 0 0;">
+                                Feel free to call or text me directly at <strong>+1 862-279-8006</strong> with any questions, suggestions, or just to chat about your experience with our product.
+                            </p>
+                        </div>
+                        
+                        <div class="section">
+                            <h3>WHAT'S IN YOUR FIRST BATCH</h3>
+                            
+                            <p style="margin-bottom: 20px;">
+                                We've crafted a unique blend that balances tradition with innovation. Each element has been carefully selected for both flavor and function:
+                            </p>
+                            
+                            <div class="ingredient-box">
+                                <div class="ingredient">Premium Yerba Mate</div>
+                                <div class="ingredient">Orange Peel</div>
+                                <div class="ingredient">Cardamom</div>
+                                <div class="ingredient">Star Anise</div>
+                                <div class="ingredient">Rose</div>
+                            </div>
+                            
+                            <div class="product-feature">
+                                <div class="feature-title">PERFECTLY BALANCED FLAVOR</div>
+                                <div class="feature-desc">Our unique blend pairs the earthy richness of yerba mate with bright citrus notes, subtle floral undertones, and warm spices – creating a complex yet refreshing profile that tastes great hot or cold.</div>
+                            </div>
+                            
+                            <div class="product-feature">
+                                <div class="feature-title">CLEAN, SUSTAINED ENERGY</div>
+                                <div class="feature-desc">Unlike coffee's spike-and-crash effect, our blend delivers 4-6 hours of smooth, jitter-free energy that keeps you focused and productive throughout your day.</div>
+                            </div>
+                            
+                            <div class="product-feature">
+                                <div class="feature-title">ARTISANAL QUALITY</div>
+                                <div class="feature-desc">No powders, no bullshit, just as the gods intended. We've partnered directly with South American growers to ensure the highest quality ingredients in every package.</div>
+                            </div>
+                        </div>
+                        
+                        <p style="font-size: 16px; margin-bottom: 30px;">
+                            Stay tuned for more updates, and thank you again for being part of the first batch of many. This is just the beginning!
+                        </p>
+                        
+                        <p style="font-size: 18px; font-weight: 600; margin: 30px 0 10px 0;">
+                            WHAT HAPPENS NEXT?
+                        </p>
+                        
+                        <p style="font-size: 16px; margin-bottom: 20px;">
+                            We're finalizing production now and expect to begin shipping in the next few weeks. You'll receive tracking information as soon as your order ships.
+                        </p>
+                        
+                        <p style="font-size: 16px; margin-bottom: 10px;">
+                            Your feedback is incredibly valuable to us as we grow. Please don't hesitate to reach out with any thoughts or suggestions - I'm personally committed to making this the best possible experience for you.
+                        </p>
+                        
+                        <p style="font-size: 24px; font-weight: 700; color: #2D5A27; margin: 15px 0 25px 0; font-family: 'Caesar Dressing', 'Arial Black', Arial, sans-serif;">
+                            ACTIVATE ANCIENT ENERGY
+                        </p>
+                        
+                        <a href="https://drinkitza.com" class="cta-button">VISIT OUR WEBSITE</a>
+                    </div>
+                    
+                    <div class="footer">
+                        <div class="social-links">
+                            <a href="#">Instagram</a> | 
+                            <a href="#">Twitter</a> | 
+                            <a href="#">TikTok</a>
+                        </div>
+                        
+                        <p>&copy; 2025 Itza Yerba Mate. All rights reserved.</p>
+                        
+                        <div class="disclaimer">
+                            This email was sent to {{email}} because you joined Itza Yerba Mate's pre-order waitlist.<br>
+                            To unsubscribe, <a href="#" style="color: #8FBC94;">click here</a>.
+                        </div>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

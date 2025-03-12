@@ -162,6 +162,15 @@
             background-color: #2980b9;
         }
         
+        .button-purple {
+            background-color: #8e44ad;
+            color: white;
+        }
+        
+        .button-purple:hover {
+            background-color: #7d3c98;
+        }
+        
         .actions {
             display: flex;
             gap: 10px;
@@ -335,6 +344,7 @@
                 <button class="button button-green" onclick="exportCSV()">Export CSV</button>
                 <button class="button button-orange" onclick="sendEducationalEmail()">Send Educational Email</button>
                 <button class="button button-blue" onclick="sendBrewingGuide()">Send Brewing Guide</button>
+                <button class="button button-purple" onclick="sendMilestoneEmail()">Send Milestone Email</button>
                 <div style="display: inline-block; margin-left: 20px;">
                     <label class="toggle-switch">
                         <input type="checkbox" id="autoRefreshToggle" checked>
@@ -458,6 +468,11 @@
                 brewingButton.textContent = 'Brewing';
                 brewingButton.onclick = () => sendBrewingGuideToOne(email.email);
                 
+                const milestoneButton = document.createElement('button');
+                milestoneButton.className = 'button button-purple';
+                milestoneButton.textContent = 'Milestone';
+                milestoneButton.onclick = () => sendMilestoneEmailToOne(email.email);
+                
                 const removeButton = document.createElement('button');
                 removeButton.className = 'button';
                 removeButton.textContent = 'Remove';
@@ -466,6 +481,7 @@
                 actionsCell.appendChild(resendButton);
                 actionsCell.appendChild(educateButton);
                 actionsCell.appendChild(brewingButton);
+                actionsCell.appendChild(milestoneButton);
                 actionsCell.appendChild(removeButton);
                 
                 row.appendChild(emailCell);
@@ -740,6 +756,62 @@
             } catch (error) {
                 console.error('Error sending brewing guide email:', error);
                 alert('Failed to send brewing guide email. Check console for details.');
+            }
+        }
+        
+        // Send milestone email to all subscribers
+        async function sendMilestoneEmail() {
+            if (!confirm("Are you sure you want to send the milestone celebration email to ALL subscribers?\n\nThis email congratulates them on being part of the first 100 customers and confirms their free gourd & bombilla.")) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-milestone-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! ${data.message}\nSuccessful: ${data.success_count}\nFailed: ${data.failure_count}\nTotal: ${data.total_count}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending milestone email:', error);
+                alert('Failed to send milestone email. Check console for details.');
+            }
+        }
+        
+        // Send milestone email to a specific subscriber
+        async function sendMilestoneEmailToOne(email) {
+            if (!confirm(`Are you sure you want to send the milestone celebration email to ${email}?\n\nThis email congratulates them on being part of the first 100 customers and confirms their free gourd & bombilla.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-milestone-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! Milestone email sent to ${email}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending milestone email:', error);
+                alert('Failed to send milestone email. Check console for details.');
             }
         }
         
