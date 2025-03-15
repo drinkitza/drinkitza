@@ -224,8 +224,7 @@ def send_educational_email(recipient_email):
             'to': recipient_email,
             'from': SENDER_EMAIL,
             'subject': msg['Subject'],
-            'html': html_content,
-            'type': 'educational'
+            'html': html_content
         }
         
         timestamp = str(int(time.time()))
@@ -965,51 +964,52 @@ def admin_send_milestone_email():
 @app.route('/api/admin/send-update-email', methods=['POST'])
 def admin_send_update_email():
     """Send update email to all subscribers or a specific email"""
-    try:
-        # Verify admin credentials
-        auth = request.authorization
-        if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
-            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
-        
-        data = request.get_json()
-        specific_email = data.get('email', None)
-        
-        if specific_email:
-            # Send to a specific email
-            success, message = send_update_email(specific_email)
-            return jsonify({
-                'success': success,
-                'message': message,
-                'email': specific_email
-            })
-        else:
-            # Send to all emails
-            emails = get_all_emails_from_csv()
-            success_count = 0
-            failure_count = 0
-            
-            for email_data in emails:
-                email = email_data['email']
-                success, _ = send_update_email(email)
-                
-                if success:
-                    success_count += 1
-                else:
-                    failure_count += 1
-                
-                # Add a small delay to avoid rate limiting
-                time.sleep(0.5)
-            
-            return jsonify({
-                'success': True,
-                'message': f"Update email sent to {success_count} subscribers, failed for {failure_count}",
-                'success_count': success_count,
-                'failure_count': failure_count
-            })
+    # Authentication is handled on the frontend
+    data = request.json
+    target_email = data.get('email')  # Optional, if None, send to all
     
+    success_count = 0
+    failure_count = 0
+    
+    # Read all emails from CSV
+    all_emails = []
+    try:
+        csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            next(reader, None)  # Skip header row if it exists
+            for row in reader:
+                if row and len(row) > 0 and '@' in row[0]:
+                    all_emails.append(row[0])
     except Exception as e:
-        error_msg = log_error(e, "admin_send_update_email")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        log_error(e, "admin_send_update_email - reading CSV")
+        return jsonify({'error': f'Failed to read email list: {str(e)}'}), 500
+    
+    # If target email is specified, only send to that email
+    if target_email:
+        success, _ = send_update_email(target_email)
+        if success:
+            success_count += 1
+        else:
+            failure_count += 1
+    else:
+        # Send to all emails
+        for email in all_emails:
+            success, _ = send_update_email(email)
+            if success:
+                success_count += 1
+            else:
+                failure_count += 1
+            
+            # Add a small delay to avoid rate limiting
+            time.sleep(0.5)
+    
+    return jsonify({
+        'message': f'Update email sent to {success_count} recipients',
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'total_count': len(all_emails) if not target_email else 1
+    })
 
 @app.route('/api/waitlist', methods=['POST'])
 def submit_email():
