@@ -171,6 +171,15 @@
             background-color: #7d3c98;
         }
         
+        .button-red {
+            background-color: #FF3737;
+            color: white;
+        }
+        
+        .button-red:hover {
+            background-color: #FF1A1A;
+        }
+        
         .actions {
             display: flex;
             gap: 10px;
@@ -345,6 +354,7 @@
                 <button class="button button-orange" onclick="sendEducationalEmail()">Send Educational Email</button>
                 <button class="button button-blue" onclick="sendBrewingGuide()">Send Brewing Guide</button>
                 <button class="button button-purple" onclick="sendMilestoneEmail()">Send Milestone Email</button>
+                <button class="button button-red" onclick="sendUpdateEmail()">Send Order Update</button>
                 <div style="display: inline-block; margin-left: 20px;">
                     <label class="toggle-switch">
                         <input type="checkbox" id="autoRefreshToggle" checked>
@@ -473,6 +483,11 @@
                 milestoneButton.textContent = 'Milestone';
                 milestoneButton.onclick = () => sendMilestoneEmailToOne(email.email);
                 
+                const updateButton = document.createElement('button');
+                updateButton.className = 'button button-red';
+                updateButton.textContent = 'Update';
+                updateButton.onclick = () => sendUpdateEmailToOne(email.email);
+                
                 const removeButton = document.createElement('button');
                 removeButton.className = 'button';
                 removeButton.textContent = 'Remove';
@@ -482,6 +497,7 @@
                 actionsCell.appendChild(educateButton);
                 actionsCell.appendChild(brewingButton);
                 actionsCell.appendChild(milestoneButton);
+                actionsCell.appendChild(updateButton);
                 actionsCell.appendChild(removeButton);
                 
                 row.appendChild(emailCell);
@@ -812,6 +828,62 @@
             } catch (error) {
                 console.error('Error sending milestone email:', error);
                 alert('Failed to send milestone email. Check console for details.');
+            }
+        }
+        
+        // Send update email to all subscribers
+        async function sendUpdateEmail() {
+            if (!confirm("Are you sure you want to send the order availability update to ALL subscribers?")) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-update-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! ${data.message}\nSuccessful: ${data.success_count}\nFailed: ${data.failure_count}\nTotal: ${data.total_count}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending update email:', error);
+                alert('Failed to send update email. Check console for details.');
+            }
+        }
+        
+        // Send update email to a specific subscriber
+        async function sendUpdateEmailToOne(email) {
+            if (!confirm(`Are you sure you want to send the order availability update to ${email}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-update-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! Update email sent to ${email}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending update email:', error);
+                alert('Failed to send update email. Check console for details.');
             }
         }
         

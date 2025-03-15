@@ -466,6 +466,95 @@ def send_milestone_email(recipient_email):
         log_error(e, "send_milestone_email")
         return False
 
+def send_update_email(recipient_email):
+    """Send an update email about ordering availability"""
+    try:
+        # First try to send via EmailJS
+        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
+            # Read the update email template
+            with open('emails/update_template.html', 'r', encoding='utf-8') as file:
+                template_content = file.read()
+            
+            # Replace placeholders with actual values
+            email_content = template_content.replace('{{email}}', recipient_email)
+            
+            # Prepare the EmailJS payload
+            payload = {
+                'service_id': 'service_itza',
+                'template_id': 'template_update',
+                'user_id': EMAIL_SERVICE_USER_ID,
+                'accessToken': EMAIL_SERVICE_ACCESS_TOKEN,
+                'template_params': {
+                    'to_email': recipient_email,
+                    'html_content': email_content,
+                    'subject': 'IMPORTANT: Ordering Available Tomorrow - Itza Yerba Mate'
+                }
+            }
+            
+            # Send the request to EmailJS
+            response = requests.post(EMAIL_SERVICE_URL, json=payload)
+            
+            if response.status_code == 200:
+                print(f"Update email sent to {recipient_email} via EmailJS")
+                return True, "Email sent successfully via EmailJS"
+            else:
+                print(f"Failed to send update email via EmailJS: {response.text}")
+                # Fall back to SMTP
+        
+        # If EmailJS fails or is not configured, try SMTP
+        if SENDER_EMAIL and SENDER_APP_PASSWORD:
+            # Create the email message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = 'IMPORTANT: Ordering Available Tomorrow - Itza Yerba Mate'
+            msg['From'] = SENDER_EMAIL
+            msg['To'] = recipient_email
+            
+            # Read the update email template
+            with open('emails/update_template.html', 'r', encoding='utf-8') as file:
+                template_content = file.read()
+            
+            # Replace placeholders with actual values
+            email_content = template_content.replace('{{email}}', recipient_email)
+            
+            # Attach the HTML content
+            msg.attach(MIMEText(email_content, 'html'))
+            
+            # Connect to the SMTP server and send the email
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.send_message(msg)
+            
+            print(f"Update email sent to {recipient_email} via SMTP")
+            return True, "Email sent successfully via SMTP"
+        
+        # If both EmailJS and SMTP fail, save to queue
+        queue_dir = os.path.join('emails', 'queue')
+        os.makedirs(queue_dir, exist_ok=True)
+        
+        # Generate a unique filename
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        filename = f"update_{timestamp}_{recipient_email.replace('@', '_at_')}.html"
+        filepath = os.path.join(queue_dir, filename)
+        
+        # Read the update email template
+        with open('emails/update_template.html', 'r', encoding='utf-8') as file:
+            template_content = file.read()
+        
+        # Replace placeholders with actual values
+        email_content = template_content.replace('{{email}}', recipient_email)
+        
+        # Save the email to the queue
+        with open(filepath, 'w', encoding='utf-8') as file:
+            file.write(email_content)
+        
+        print(f"Update email queued for {recipient_email}")
+        return False, "Email queued for later delivery"
+    
+    except Exception as e:
+        error_msg = log_error(e, "send_update_email")
+        return False, f"Failed to send update email: {str(e)}"
+
 def check_duplicate_email(email):
     """Check if email already exists in the waitlist"""
     url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}'
@@ -872,6 +961,55 @@ def admin_send_milestone_email():
         'failure_count': failure_count,
         'total_count': len(all_emails) if not target_email else 1
     })
+
+@app.route('/api/admin/send-update-email', methods=['POST'])
+def admin_send_update_email():
+    """Send update email to all subscribers or a specific email"""
+    try:
+        # Verify admin credentials
+        auth = request.authorization
+        if not auth or auth.username != ADMIN_USERNAME or auth.password != ADMIN_PASSWORD:
+            return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+        
+        data = request.get_json()
+        specific_email = data.get('email', None)
+        
+        if specific_email:
+            # Send to a specific email
+            success, message = send_update_email(specific_email)
+            return jsonify({
+                'success': success,
+                'message': message,
+                'email': specific_email
+            })
+        else:
+            # Send to all emails
+            emails = get_all_emails_from_csv()
+            success_count = 0
+            failure_count = 0
+            
+            for email_data in emails:
+                email = email_data['email']
+                success, _ = send_update_email(email)
+                
+                if success:
+                    success_count += 1
+                else:
+                    failure_count += 1
+                
+                # Add a small delay to avoid rate limiting
+                time.sleep(0.5)
+            
+            return jsonify({
+                'success': True,
+                'message': f"Update email sent to {success_count} subscribers, failed for {failure_count}",
+                'success_count': success_count,
+                'failure_count': failure_count
+            })
+    
+    except Exception as e:
+        error_msg = log_error(e, "admin_send_update_email")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/waitlist', methods=['POST'])
 def submit_email():
