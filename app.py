@@ -558,67 +558,96 @@ def send_update_email(recipient_email):
 def send_order_ready_email(recipient_email):
     """Send order ready email to a recipient"""
     try:
-        # Load the email template
-        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'order_ready_template.html')
-        with open(template_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-        
-        # Replace placeholders with actual values
-        html_content = html_content.replace('{{email}}', recipient_email)
-        
-        # Create email message
-        msg = MIMEMultipart()
-        msg['Subject'] = "🔥 ITZA ORDERS ARE OPEN! Limited Time Offer Inside"
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        
-        # Attach HTML content
-        msg.attach(MIMEText(html_content, 'html'))
-        
-        # Try to send via EmailJS first
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
-            payload = {
-                'service_id': EMAIL_SERVICE_ID,
-                'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                'user_id': EMAIL_SERVICE_USER_ID,
-                'accessToken': EMAIL_SERVICE_ACCESS_TOKEN,
-                'template_params': {
-                    'to': recipient_email,
-                    'from': SENDER_EMAIL,
-                    'subject': msg['Subject'],
-                    'html': html_content
-                }
-            }
-            
-            timestamp = str(int(time.time()))
-            url = f"{EMAIL_SERVICE_URL}?time={timestamp}"
-            
+        # First try EmailJS (primary method)
+        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
             try:
-                response = requests.post(url, json=payload)
+                emailjs_data = {
+                    'service_id': EMAIL_SERVICE_ID,
+                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
+                    'user_id': EMAIL_SERVICE_USER_ID,
+                    'template_params': {
+                        'to_email': recipient_email,
+                        'email': recipient_email,  # For template replacement
+                        'template_type': 'order_ready'  # Flag to use order ready template
+                    },
+                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+                }
+                
+                headers = {'Content-Type': 'application/json'}
+                response = requests.post(
+                    'https://api.emailjs.com/api/v1.0/email/send',
+                    headers=headers,
+                    json=emailjs_data
+                )
+                
                 if response.status_code == 200:
-                    print(f"Order ready email sent to {recipient_email} via EmailJS")
+                    print(f"Order ready email sent successfully to {recipient_email} via EmailJS")
                     return True, "Email sent successfully via EmailJS"
                 else:
-                    print(f"Failed to send order ready email via EmailJS: {response.text}")
-                    # Fall back to queue method
+                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
+                    # Fall back to SMTP or queue
             except Exception as e:
-                print(f"Error sending order ready email via EmailJS: {str(e)}")
-                # Fall back to queue method
+                print(f"EmailJS error: {str(e)}")
+                # Fall back to SMTP or queue
         
-        # Fall back to queue method
+        # Create a multipart message for SMTP or queue
+        msg = MIMEMultipart('alternative')
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        msg['Subject'] = "🔥 ITZA ORDERS ARE OPEN! Limited Time Offer Inside"
+
+        # Read the HTML template
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'order_ready_template.html')
+        
+        if not os.path.exists(template_path):
+            print(f"Warning: Order ready email template not found at {template_path}")
+            html_content = "<p>Orders are now open! Visit our website to place your order.</p>"
+        else:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+        
+        # Replace placeholders
+        html_content = html_content.replace('{{email}}', recipient_email)
+        
+        # Create HTML version
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        # Try to send email via SMTP as second option
+        if SENDER_APP_PASSWORD:
+            try:
+                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                server.starttls()
+                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.send_message(msg)
+                server.quit()
+                print(f"Order ready email sent successfully to {recipient_email} via SMTP")
+                return True, "Email sent successfully via SMTP"
+            except Exception as e:
+                print(f"SMTP sending failed: {str(e)}")
+                # Fall back to queue
+        
+        # Queue the email if both EmailJS and SMTP fail
         queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
         os.makedirs(queue_dir, exist_ok=True)
         
-        # Save email to queue
-        filename = f"order_ready_{int(time.time())}_{recipient_email.replace('@', '_at_')}.eml"
+        email_data = {
+            'to': recipient_email,
+            'from': SENDER_EMAIL,
+            'subject': msg['Subject'],
+            'html': html_content
+        }
+        
+        timestamp = str(int(time.time()))
+        filename = f"{timestamp}_order_ready_{recipient_email.replace('@', '_at_')}.json"
         filepath = os.path.join(queue_dir, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(msg.as_string())
+            json.dump(email_data, f, indent=2)
         
-        print(f"Order ready email queued for {recipient_email}")
+        print(f"Order ready email queued for {recipient_email} at {filepath}")
         return True, "Email queued for sending"
-    
+        
     except Exception as e:
         error_msg = log_error(e, "send_order_ready_email")
         return False, f"Failed to send order ready email: {str(e)}"
@@ -1106,7 +1135,7 @@ def admin_send_order_ready_email():
     
     # If target email is specified, only send to that email
     if target_email:
-        success, _ = send_order_ready_email(target_email)
+        success, message = send_order_ready_email(target_email)
         if success:
             success_count += 1
         else:
@@ -1114,7 +1143,7 @@ def admin_send_order_ready_email():
     else:
         # Send to all emails
         for email in all_emails:
-            success, _ = send_order_ready_email(email)
+            success, message = send_order_ready_email(email)
             if success:
                 success_count += 1
             else:
@@ -1123,11 +1152,14 @@ def admin_send_order_ready_email():
             # Add a small delay to avoid rate limiting
             time.sleep(0.5)
     
+    total_count = success_count + failure_count
+    
     return jsonify({
-        'message': f'Order ready email sent to {success_count} recipients',
+        'status': 'success',
+        'message': f'Order ready emails processed',
         'success_count': success_count,
         'failure_count': failure_count,
-        'total_count': len(all_emails) if not target_email else 1
+        'total_count': total_count
     })
 
 @app.route('/api/waitlist', methods=['POST'])
