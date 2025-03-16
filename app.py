@@ -20,18 +20,11 @@ REPO_OWNER = 'drinkitza'
 REPO_NAME = 'drinkitza'
 FILE_PATH = 'emails/waitlist.csv'
 
-# Email configuration - SMTP fallback
+# Email configuration
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
 SENDER_EMAIL = 'drinkitza@gmail.com'
-SENDER_APP_PASSWORD = ''
-
-# EmailJS configuration (primary method)
-EMAIL_SERVICE_URL = 'https://api.emailjs.com/api/v1.0/email/send'
-EMAIL_SERVICE_USER_ID = 'user_7vN9gJQJbgGZR5LpJqRBt'
-EMAIL_SERVICE_TEMPLATE_ID = 'template_confirmation'
-EMAIL_SERVICE_ACCESS_TOKEN = ''
-EMAIL_SERVICE_ID = 'service_itza'
+SENDER_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD', '')
 
 # Simple admin authentication (for demo purposes only - use proper auth in production)
 ADMIN_USERNAME = 'admin'
@@ -52,38 +45,7 @@ def log_error(e, context=""):
 def send_confirmation_email(recipient_email):
     """Send the beautiful thank you email to new waitlist signups"""
     try:
-        # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
-            try:
-                emailjs_data = {
-                    'service_id': EMAIL_SERVICE_ID,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
-                    'template_params': {
-                        'to_email': recipient_email,
-                        'email': recipient_email  # For template replacement
-                    },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
-                }
-                
-                headers = {'Content-Type': 'application/json'}
-                response = requests.post(
-                    'https://api.emailjs.com/api/v1.0/email/send',
-                    headers=headers,
-                    json=emailjs_data
-                )
-                
-                if response.status_code == 200:
-                    print(f"Email sent successfully to {recipient_email} via EmailJS")
-                    return True
-                else:
-                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
-                    # Fall back to SMTP or queue
-            except Exception as e:
-                print(f"EmailJS error: {str(e)}")
-                # Fall back to SMTP or queue
-        
-        # Create a multipart message for SMTP or queue
+        # Create a multipart message
         msg = MIMEMultipart('alternative')
         msg['From'] = SENDER_EMAIL
         msg['To'] = recipient_email
@@ -106,21 +68,20 @@ def send_confirmation_email(recipient_email):
         html_part = MIMEText(html_content, 'html')
         msg.attach(html_part)
         
-        # Try to send email via SMTP as second option
-        if SENDER_APP_PASSWORD:
-            try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-                server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
-                server.send_message(msg)
-                server.quit()
-                print(f"Email sent successfully to {recipient_email} via SMTP")
-                return True
-            except Exception as e:
-                print(f"SMTP sending failed: {str(e)}")
-                # Fall back to queue
+        # Try to send email via SMTP
+        try:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            print(f"Email sent successfully to {recipient_email} via SMTP")
+            return True
+        except Exception as e:
+            print(f"SMTP sending failed: {str(e)}")
+            # Fall back to queue
         
-        # Queue the email if both EmailJS and SMTP fail
+        # Queue the email if SMTP fails
         queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
         os.makedirs(queue_dir, exist_ok=True)
         
@@ -148,39 +109,7 @@ def send_confirmation_email(recipient_email):
 def send_educational_email(recipient_email):
     """Send the educational email about yerba mate history and benefits"""
     try:
-        # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
-            try:
-                emailjs_data = {
-                    'service_id': EMAIL_SERVICE_ID,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
-                    'template_params': {
-                        'to_email': recipient_email,
-                        'email': recipient_email,  # For template replacement
-                        'template_type': 'educational'  # Flag to use educational template
-                    },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
-                }
-                
-                headers = {'Content-Type': 'application/json'}
-                response = requests.post(
-                    'https://api.emailjs.com/api/v1.0/email/send',
-                    headers=headers,
-                    json=emailjs_data
-                )
-                
-                if response.status_code == 200:
-                    print(f"Educational email sent successfully to {recipient_email} via EmailJS")
-                    return True
-                else:
-                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
-                    # Fall back to SMTP or queue
-            except Exception as e:
-                print(f"EmailJS error: {str(e)}")
-                # Fall back to SMTP or queue
-        
-        # Create a multipart message for SMTP or queue
+        # Create a multipart message
         msg = MIMEMultipart('alternative')
         msg['From'] = SENDER_EMAIL
         msg['To'] = recipient_email
@@ -203,21 +132,20 @@ def send_educational_email(recipient_email):
         html_part = MIMEText(html_content, 'html')
         msg.attach(html_part)
         
-        # Try to send email via SMTP as second option
-        if SENDER_APP_PASSWORD:
-            try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-                server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
-                server.send_message(msg)
-                server.quit()
-                print(f"Educational email sent successfully to {recipient_email} via SMTP")
-                return True
-            except Exception as e:
-                print(f"SMTP sending failed: {str(e)}")
-                # Fall back to queue
+        # Try to send email via SMTP
+        try:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            print(f"Educational email sent successfully to {recipient_email} via SMTP")
+            return True
+        except Exception as e:
+            print(f"SMTP sending failed: {str(e)}")
+            # Fall back to queue
         
-        # Queue the email if both EmailJS and SMTP fail
+        # Queue the email if SMTP fails
         queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
         os.makedirs(queue_dir, exist_ok=True)
         
@@ -245,57 +173,6 @@ def send_educational_email(recipient_email):
 def send_brewing_guide(recipient_email):
     """Send the brewing guide email"""
     try:
-        # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
-            try:
-                # Read the HTML template
-                template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'brewing_guide_template.html')
-                
-                if not os.path.exists(template_path):
-                    print(f"Warning: Brewing guide email template not found at {template_path}")
-                    html_content = "<p>Learn how to brew yerba mate!</p>"
-                else:
-                    with open(template_path, 'r', encoding='utf-8') as f:
-                        html_content = f.read()
-                
-                # Replace placeholders
-                html_content = html_content.replace('{{email}}', recipient_email)
-                
-                emailjs_data = {
-                    'service_id': EMAIL_SERVICE_ID,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
-                    'template_params': {
-                        'to_email': recipient_email,
-                        'subject': "How to Brew Yerba Mate + FREE Gourd & Bombilla Offer!",
-                        'html_content': html_content
-                    },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
-                }
-                
-                headers = {'Content-Type': 'application/json'}
-                response = requests.post(
-                    'https://api.emailjs.com/api/v1.0/email/send',
-                    headers=headers,
-                    json=emailjs_data
-                )
-                
-                if response.status_code == 200:
-                    print(f"Brewing guide email sent successfully to {recipient_email} via EmailJS")
-                    return True
-                else:
-                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
-                    # Fall back to SMTP or queue
-            except Exception as e:
-                print(f"EmailJS error: {str(e)}")
-                # Fall back to SMTP or queue
-        
-        # Create a multipart message for SMTP or queue
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "How to Brew Yerba Mate + FREE Gourd & Bombilla Offer!"
-
         # Read the HTML template
         template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'brewing_guide_template.html')
         
@@ -309,42 +186,40 @@ def send_brewing_guide(recipient_email):
         # Replace placeholders
         html_content = html_content.replace('{{email}}', recipient_email)
         
-        # Create HTML version
+        # Create email message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "How to Brew Yerba Mate + FREE Gourd & Bombilla Offer!"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        
+        # Attach HTML content
         html_part = MIMEText(html_content, 'html')
         msg.attach(html_part)
         
-        # Try to send email via SMTP as second option
-        if SENDER_EMAIL and SENDER_APP_PASSWORD:
-            try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-                server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
-                server.send_message(msg)
-                server.quit()
-                print(f"Brewing guide email sent successfully to {recipient_email} via SMTP")
-                return True
-            except Exception as e:
-                print(f"SMTP sending failed: {str(e)}")
-                # Fall back to queue
+        # Try to send email via SMTP
+        try:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            print(f"Brewing guide email sent successfully to {recipient_email} via SMTP")
+            return True
+        except Exception as e:
+            print(f"SMTP sending failed: {str(e)}")
+            # Fall back to queue
         
-        # Queue the email if both EmailJS and SMTP fail
+        # Queue the email if SMTP fails
         queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
         os.makedirs(queue_dir, exist_ok=True)
         
-        email_data = {
-            'to': recipient_email,
-            'from': SENDER_EMAIL,
-            'subject': msg['Subject'],
-            'html': html_content,
-            'type': 'brewing_guide'
-        }
-        
+        # Save email to queue
         timestamp = str(int(time.time()))
-        filename = f"{timestamp}_brewing_guide_{recipient_email.replace('@', '_at_')}.json"
+        filename = f"{timestamp}_brewing_guide_{recipient_email.replace('@', '_at_')}.eml"
         filepath = os.path.join(queue_dir, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(email_data, f, indent=2)
+            f.write(msg.as_string())
         
         print(f"Brewing guide email queued for {recipient_email} at {filepath}")
         return True
@@ -357,57 +232,6 @@ def send_brewing_guide(recipient_email):
 def send_milestone_email(recipient_email):
     """Send the 100 milestone celebration email"""
     try:
-        # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
-            try:
-                # Read the HTML template
-                template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'milestone_template.html')
-                
-                if not os.path.exists(template_path):
-                    print(f"Warning: Milestone email template not found at {template_path}")
-                    html_content = "<p>Congratulations on being part of our first 100 customers!</p>"
-                else:
-                    with open(template_path, 'r', encoding='utf-8') as f:
-                        html_content = f.read()
-                
-                # Replace placeholders
-                html_content = html_content.replace('{{email}}', recipient_email)
-                
-                emailjs_data = {
-                    'service_id': EMAIL_SERVICE_ID,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
-                    'template_params': {
-                        'to_email': recipient_email,
-                        'subject': "Celebrating 100 Customers! Your Free Gift is Confirmed",
-                        'html_content': html_content
-                    },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
-                }
-                
-                headers = {'Content-Type': 'application/json'}
-                response = requests.post(
-                    'https://api.emailjs.com/api/v1.0/email/send',
-                    headers=headers,
-                    json=emailjs_data
-                )
-                
-                if response.status_code == 200:
-                    print(f"Milestone email sent successfully to {recipient_email} via EmailJS")
-                    return True
-                else:
-                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
-                    # Fall back to SMTP or queue
-            except Exception as e:
-                print(f"EmailJS error: {str(e)}")
-                # Fall back to SMTP or queue
-        
-        # Create a multipart message for SMTP or queue
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "Celebrating 100 Customers! Your Free Gift is Confirmed"
-
         # Read the HTML template
         template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'milestone_template.html')
         
@@ -421,42 +245,40 @@ def send_milestone_email(recipient_email):
         # Replace placeholders
         html_content = html_content.replace('{{email}}', recipient_email)
         
-        # Create HTML version
+        # Create email message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "Celebrating 100 Customers! Your Free Gift is Confirmed"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        
+        # Attach HTML content
         html_part = MIMEText(html_content, 'html')
         msg.attach(html_part)
         
-        # Try to send email via SMTP as second option
-        if SENDER_EMAIL and SENDER_APP_PASSWORD:
-            try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-                server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
-                server.send_message(msg)
-                server.quit()
-                print(f"Milestone email sent successfully to {recipient_email} via SMTP")
-                return True
-            except Exception as e:
-                print(f"SMTP sending failed: {str(e)}")
-                # Fall back to queue
+        # Try to send email via SMTP
+        try:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            print(f"Milestone email sent successfully to {recipient_email} via SMTP")
+            return True
+        except Exception as e:
+            print(f"SMTP sending failed: {str(e)}")
+            # Fall back to queue
         
-        # Queue the email if both EmailJS and SMTP fail
+        # Queue the email if SMTP fails
         queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
         os.makedirs(queue_dir, exist_ok=True)
         
-        email_data = {
-            'to': recipient_email,
-            'from': SENDER_EMAIL,
-            'subject': msg['Subject'],
-            'html': html_content,
-            'type': 'milestone'
-        }
-        
+        # Save email to queue
         timestamp = str(int(time.time()))
-        filename = f"{timestamp}_milestone_{recipient_email.replace('@', '_at_')}.json"
+        filename = f"{timestamp}_milestone_{recipient_email.replace('@', '_at_')}.eml"
         filepath = os.path.join(queue_dir, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(email_data, f, indent=2)
+            f.write(msg.as_string())
         
         print(f"Milestone email queued for {recipient_email} at {filepath}")
         return True
@@ -469,88 +291,57 @@ def send_milestone_email(recipient_email):
 def send_update_email(recipient_email):
     """Send an update email about ordering availability"""
     try:
-        # First try to send via EmailJS
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
-            # Read the update email template
-            with open('emails/update_template.html', 'r', encoding='utf-8') as file:
-                template_content = file.read()
-            
-            # Replace placeholders with actual values
-            email_content = template_content.replace('{{email}}', recipient_email)
-            
-            # Prepare the EmailJS payload
-            payload = {
-                'service_id': EMAIL_SERVICE_ID,
-                'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                'user_id': EMAIL_SERVICE_USER_ID,
-                'accessToken': EMAIL_SERVICE_ACCESS_TOKEN,
-                'template_params': {
-                    'to_email': recipient_email,
-                    'html_content': email_content,
-                    'subject': 'IMPORTANT: Ordering Available Tomorrow - Itza Yerba Mate'
-                }
-            }
-            
-            # Send the request to EmailJS
-            response = requests.post(EMAIL_SERVICE_URL, json=payload)
-            
-            if response.status_code == 200:
-                print(f"Update email sent to {recipient_email} via EmailJS")
-                return True, "Email sent successfully via EmailJS"
-            else:
-                print(f"Failed to send update email via EmailJS: {response.text}")
-                # Fall back to SMTP
+        # Read the HTML template
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'update_template.html')
         
-        # If EmailJS fails or is not configured, try SMTP
-        if SENDER_EMAIL and SENDER_APP_PASSWORD:
-            # Create the email message
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = 'IMPORTANT: Ordering Available Tomorrow - Itza Yerba Mate'
-            msg['From'] = SENDER_EMAIL
-            msg['To'] = recipient_email
-            
-            # Read the update email template
-            with open('emails/update_template.html', 'r', encoding='utf-8') as file:
-                template_content = file.read()
-            
-            # Replace placeholders with actual values
-            email_content = template_content.replace('{{email}}', recipient_email)
-            
-            # Attach the HTML content
-            msg.attach(MIMEText(email_content, 'html'))
-            
-            # Connect to the SMTP server and send the email
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
-                server.send_message(msg)
-            
-            print(f"Update email sent to {recipient_email} via SMTP")
+        if not os.path.exists(template_path):
+            print(f"Warning: Update email template not found at {template_path}")
+            html_content = "<p>Orders are now open! Visit our website to place your order.</p>"
+        else:
+            with open(template_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+        
+        # Replace placeholders
+        html_content = html_content.replace('{{email}}', recipient_email)
+        
+        # Create email message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = "IMPORTANT: Ordering Available Tomorrow - Itza Yerba Mate"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        
+        # Attach HTML content
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
+        
+        # Try to send email via SMTP
+        try:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            print(f"Update email sent successfully to {recipient_email} via SMTP")
             return True, "Email sent successfully via SMTP"
+        except Exception as e:
+            print(f"SMTP sending failed: {str(e)}")
+            # Fall back to queue
         
-        # If both EmailJS and SMTP fail, save to queue
-        queue_dir = os.path.join('emails', 'queue')
+        # Queue the email if SMTP fails
+        queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
         os.makedirs(queue_dir, exist_ok=True)
         
-        # Generate a unique filename
-        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-        filename = f"update_{timestamp}_{recipient_email.replace('@', '_at_')}.html"
+        # Save email to queue
+        timestamp = str(int(time.time()))
+        filename = f"{timestamp}_update_{recipient_email.replace('@', '_at_')}.eml"
         filepath = os.path.join(queue_dir, filename)
         
-        # Read the update email template
-        with open('emails/update_template.html', 'r', encoding='utf-8') as file:
-            template_content = file.read()
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(msg.as_string())
         
-        # Replace placeholders with actual values
-        email_content = template_content.replace('{{email}}', recipient_email)
+        print(f"Update email queued for {recipient_email} at {filepath}")
+        return True, "Email queued for sending"
         
-        # Save the email to the queue
-        with open(filepath, 'w', encoding='utf-8') as file:
-            file.write(email_content)
-        
-        print(f"Update email queued for {recipient_email}")
-        return False, "Email queued for later delivery"
-    
     except Exception as e:
         error_msg = log_error(e, "send_update_email")
         return False, f"Failed to send update email: {str(e)}"
@@ -571,50 +362,40 @@ def send_order_ready_email(recipient_email):
         # Replace placeholders
         html_content = html_content.replace('{{email}}', recipient_email)
         
-        # Try EmailJS (primary method)
-        emailjs_data = {
-            'service_id': EMAIL_SERVICE_ID,
-            'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-            'user_id': EMAIL_SERVICE_USER_ID,
-            'template_params': {
-                'to_email': recipient_email,
-                'email': recipient_email,
-                'subject': "🔥 ITZA ORDERS ARE OPEN! Limited Time Offer Inside",
-                'html': html_content
-            }
-        }
+        # Create email message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = " ITZA ORDERS ARE OPEN! Limited Time Offer Inside"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
         
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(
-            'https://api.emailjs.com/api/v1.0/email/send',
-            headers=headers,
-            json=emailjs_data
-        )
+        # Attach HTML content
+        html_part = MIMEText(html_content, 'html')
+        msg.attach(html_part)
         
-        if response.status_code == 200:
-            print(f"Order ready email sent successfully to {recipient_email} via EmailJS")
-            return True, "Email sent successfully via EmailJS"
-        else:
-            print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
+        # Try to send email via SMTP
+        try:
+            server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+            server.send_message(msg)
+            server.quit()
+            print(f"Order ready email sent successfully to {recipient_email} via SMTP")
+            return True, "Email sent successfully via SMTP"
+        except Exception as e:
+            print(f"SMTP sending failed: {str(e)}")
             # Fall back to queue
-            
-        # Queue the email if EmailJS fails
+        
+        # Queue the email if SMTP fails
         queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
         os.makedirs(queue_dir, exist_ok=True)
         
-        email_data = {
-            'to': recipient_email,
-            'from': SENDER_EMAIL,
-            'subject': "🔥 ITZA ORDERS ARE OPEN! Limited Time Offer Inside",
-            'html': html_content
-        }
-        
+        # Save email to queue
         timestamp = str(int(time.time()))
-        filename = f"{timestamp}_order_ready_{recipient_email.replace('@', '_at_')}.json"
+        filename = f"{timestamp}_order_ready_{recipient_email.replace('@', '_at_')}.eml"
         filepath = os.path.join(queue_dir, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(email_data, f, indent=2)
+            f.write(msg.as_string())
         
         print(f"Order ready email queued for {recipient_email} at {filepath}")
         return True, "Email queued for sending"
