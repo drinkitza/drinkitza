@@ -355,6 +355,7 @@
                 <button class="button button-blue" onclick="sendBrewingGuide()">Send Brewing Guide</button>
                 <button class="button button-purple" onclick="sendMilestoneEmail()">Send Milestone Email</button>
                 <button class="button button-red" onclick="sendUpdateEmail()">Send Order Update</button>
+                <button class="button" onclick="sendOrderReadyEmail()" style="background-color: #FF7F3F; color: white; font-weight: bold;">SEND ORDER NOW OPEN</button>
                 <div style="display: inline-block; margin-left: 20px;">
                     <label class="toggle-switch">
                         <input type="checkbox" id="autoRefreshToggle" checked>
@@ -488,6 +489,11 @@
                 updateButton.textContent = 'Update';
                 updateButton.onclick = () => sendUpdateEmailToOne(email.email);
                 
+                const orderReadyButton = document.createElement('button');
+                orderReadyButton.className = 'button';
+                orderReadyButton.textContent = 'Order Ready';
+                orderReadyButton.onclick = () => sendOrderReadyEmailToOne(email.email);
+                
                 const removeButton = document.createElement('button');
                 removeButton.className = 'button';
                 removeButton.textContent = 'Remove';
@@ -498,6 +504,7 @@
                 actionsCell.appendChild(brewingButton);
                 actionsCell.appendChild(milestoneButton);
                 actionsCell.appendChild(updateButton);
+                actionsCell.appendChild(orderReadyButton);
                 actionsCell.appendChild(removeButton);
                 
                 row.appendChild(emailCell);
@@ -884,6 +891,62 @@
             } catch (error) {
                 console.error('Error sending update email:', error);
                 alert('Failed to send update email. Check console for details.');
+            }
+        }
+        
+        // Send order-ready email to all subscribers
+        async function sendOrderReadyEmail() {
+            if (!confirm("Are you sure you want to send the ORDER NOW OPEN email to ALL subscribers? This contains the Stripe checkout link.")) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-order-ready-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! ${data.message}\nSuccessful: ${data.success_count}\nFailed: ${data.failure_count}\nTotal: ${data.total_count}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending order-ready email:', error);
+                alert('Failed to send order-ready email. Check console for details.');
+            }
+        }
+        
+        // Send order-ready email to a specific subscriber
+        async function sendOrderReadyEmailToOne(email) {
+            if (!confirm(`Are you sure you want to send the ORDER NOW OPEN email to ${email}? This contains the Stripe checkout link.`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/send-order-ready-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    alert(`Success! Order-ready email sent to ${email}`);
+                } else {
+                    alert(`Error: ${data.error || 'Unknown error occurred'}`);
+                }
+            } catch (error) {
+                console.error('Error sending order-ready email:', error);
+                alert('Failed to send order-ready email. Check console for details.');
             }
         }
         

@@ -15,7 +15,7 @@ import csv
 app = Flask(__name__)
 
 # GitHub configuration for waitlist storage
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+GITHUB_TOKEN = 'your-github-token'
 REPO_OWNER = 'drinkitza'
 REPO_NAME = 'drinkitza'
 FILE_PATH = 'emails/waitlist.csv'
@@ -23,18 +23,19 @@ FILE_PATH = 'emails/waitlist.csv'
 # Email configuration - SMTP fallback
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
-SENDER_EMAIL = os.getenv('SENDER_EMAIL', 'drinkitza@gmail.com')
-SENDER_APP_PASSWORD = os.getenv('SENDER_APP_PASSWORD', '')
+SENDER_EMAIL = 'drinkitza@gmail.com'
+SENDER_APP_PASSWORD = ''
 
 # EmailJS configuration (primary method)
-EMAIL_SERVICE_URL = os.getenv('EMAIL_SERVICE_URL')
-EMAIL_SERVICE_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID')
-EMAIL_SERVICE_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
-EMAIL_SERVICE_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
+EMAIL_SERVICE_URL = 'https://api.emailjs.com/api/v1.0/email/send'
+EMAIL_SERVICE_USER_ID = 'user_7vN9gJQJbgGZR5LpJqRBt'
+EMAIL_SERVICE_TEMPLATE_ID = 'template_confirmation'
+EMAIL_SERVICE_ACCESS_TOKEN = ''
+EMAIL_SERVICE_ID = 'service_itza'
 
 # Simple admin authentication (for demo purposes only - use proper auth in production)
-ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
-ADMIN_PASSWORD = os.getenv('ADMIN_PASSWORD', 'billions')
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD = 'billions'
 
 def log_error(e, context=""):
     """Log errors with context for easier debugging"""
@@ -55,7 +56,7 @@ def send_confirmation_email(recipient_email):
         if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
             try:
                 emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
+                    'service_id': EMAIL_SERVICE_ID,
                     'template_id': EMAIL_SERVICE_TEMPLATE_ID,
                     'user_id': EMAIL_SERVICE_USER_ID,
                     'template_params': {
@@ -151,7 +152,7 @@ def send_educational_email(recipient_email):
         if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
             try:
                 emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
+                    'service_id': EMAIL_SERVICE_ID,
                     'template_id': EMAIL_SERVICE_TEMPLATE_ID,
                     'user_id': EMAIL_SERVICE_USER_ID,
                     'template_params': {
@@ -261,7 +262,7 @@ def send_brewing_guide(recipient_email):
                 html_content = html_content.replace('{{email}}', recipient_email)
                 
                 emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
+                    'service_id': EMAIL_SERVICE_ID,
                     'template_id': EMAIL_SERVICE_TEMPLATE_ID,
                     'user_id': EMAIL_SERVICE_USER_ID,
                     'template_params': {
@@ -373,7 +374,7 @@ def send_milestone_email(recipient_email):
                 html_content = html_content.replace('{{email}}', recipient_email)
                 
                 emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
+                    'service_id': EMAIL_SERVICE_ID,
                     'template_id': EMAIL_SERVICE_TEMPLATE_ID,
                     'user_id': EMAIL_SERVICE_USER_ID,
                     'template_params': {
@@ -479,8 +480,8 @@ def send_update_email(recipient_email):
             
             # Prepare the EmailJS payload
             payload = {
-                'service_id': 'service_itza',
-                'template_id': 'template_update',
+                'service_id': EMAIL_SERVICE_ID,
+                'template_id': EMAIL_SERVICE_TEMPLATE_ID,
                 'user_id': EMAIL_SERVICE_USER_ID,
                 'accessToken': EMAIL_SERVICE_ACCESS_TOKEN,
                 'template_params': {
@@ -553,6 +554,74 @@ def send_update_email(recipient_email):
     except Exception as e:
         error_msg = log_error(e, "send_update_email")
         return False, f"Failed to send update email: {str(e)}"
+
+def send_order_ready_email(recipient_email):
+    """Send order ready email to a recipient"""
+    try:
+        # Load the email template
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'order_ready_template.html')
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+        
+        # Replace placeholders with actual values
+        html_content = html_content.replace('{{email}}', recipient_email)
+        
+        # Create email message
+        msg = MIMEMultipart()
+        msg['Subject'] = "🔥 ITZA ORDERS ARE OPEN! Limited Time Offer Inside"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = recipient_email
+        
+        # Attach HTML content
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        # Try to send via EmailJS first
+        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
+            payload = {
+                'service_id': EMAIL_SERVICE_ID,
+                'template_id': EMAIL_SERVICE_TEMPLATE_ID,
+                'user_id': EMAIL_SERVICE_USER_ID,
+                'accessToken': EMAIL_SERVICE_ACCESS_TOKEN,
+                'template_params': {
+                    'to': recipient_email,
+                    'from': SENDER_EMAIL,
+                    'subject': msg['Subject'],
+                    'html': html_content
+                }
+            }
+            
+            timestamp = str(int(time.time()))
+            url = f"{EMAIL_SERVICE_URL}?time={timestamp}"
+            
+            try:
+                response = requests.post(url, json=payload)
+                if response.status_code == 200:
+                    print(f"Order ready email sent to {recipient_email} via EmailJS")
+                    return True, "Email sent successfully via EmailJS"
+                else:
+                    print(f"Failed to send order ready email via EmailJS: {response.text}")
+                    # Fall back to queue method
+            except Exception as e:
+                print(f"Error sending order ready email via EmailJS: {str(e)}")
+                # Fall back to queue method
+        
+        # Fall back to queue method
+        queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
+        os.makedirs(queue_dir, exist_ok=True)
+        
+        # Save email to queue
+        filename = f"order_ready_{int(time.time())}_{recipient_email.replace('@', '_at_')}.eml"
+        filepath = os.path.join(queue_dir, filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(msg.as_string())
+        
+        print(f"Order ready email queued for {recipient_email}")
+        return True, "Email queued for sending"
+    
+    except Exception as e:
+        error_msg = log_error(e, "send_order_ready_email")
+        return False, f"Failed to send order ready email: {str(e)}"
 
 def check_duplicate_email(email):
     """Check if email already exists in the waitlist"""
@@ -1006,6 +1075,56 @@ def admin_send_update_email():
     
     return jsonify({
         'message': f'Update email sent to {success_count} recipients',
+        'success_count': success_count,
+        'failure_count': failure_count,
+        'total_count': len(all_emails) if not target_email else 1
+    })
+
+@app.route('/api/admin/send-order-ready-email', methods=['POST'])
+def admin_send_order_ready_email():
+    """Send order ready email to all subscribers or a specific email"""
+    # Authentication is handled on the frontend
+    data = request.json
+    target_email = data.get('email')  # Optional, if None, send to all
+    
+    success_count = 0
+    failure_count = 0
+    
+    # Read all emails from CSV
+    all_emails = []
+    try:
+        csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'waitlist.csv')
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            next(reader, None)  # Skip header row if it exists
+            for row in reader:
+                if row and len(row) > 0 and '@' in row[0]:
+                    all_emails.append(row[0])
+    except Exception as e:
+        log_error(e, "admin_send_order_ready_email - reading CSV")
+        return jsonify({'error': f'Failed to read email list: {str(e)}'}), 500
+    
+    # If target email is specified, only send to that email
+    if target_email:
+        success, _ = send_order_ready_email(target_email)
+        if success:
+            success_count += 1
+        else:
+            failure_count += 1
+    else:
+        # Send to all emails
+        for email in all_emails:
+            success, _ = send_order_ready_email(email)
+            if success:
+                success_count += 1
+            else:
+                failure_count += 1
+            
+            # Add a small delay to avoid rate limiting
+            time.sleep(0.5)
+    
+    return jsonify({
+        'message': f'Order ready email sent to {success_count} recipients',
         'success_count': success_count,
         'failure_count': failure_count,
         'total_count': len(all_emails) if not target_email else 1
