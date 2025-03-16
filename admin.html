@@ -491,7 +491,10 @@
                 
                 const orderReadyButton = document.createElement('button');
                 orderReadyButton.className = 'button';
-                orderReadyButton.textContent = 'Order Ready';
+                orderReadyButton.style.backgroundColor = '#FF7F3F';
+                orderReadyButton.style.color = 'white';
+                orderReadyButton.style.fontWeight = 'bold';
+                orderReadyButton.textContent = 'ORDER NOW';
                 orderReadyButton.onclick = () => sendOrderReadyEmailToOne(email.email);
                 
                 const removeButton = document.createElement('button');
