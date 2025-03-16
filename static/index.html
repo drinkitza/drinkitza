@@ -34,6 +34,43 @@
             background-color: #FF7F3F;
             transform: scale(1.1);
         }
+        
+        .order-now-button {
+            background: linear-gradient(135deg, var(--orange-main) 0%, var(--orange-light) 100%);
+            color: white;
+            padding: 16px 32px;
+            font-size: 24px;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 30px;
+            box-shadow: 0 8px 20px rgba(255, 127, 63, 0.4);
+            transition: all 0.3s ease;
+            animation: pulse 2s infinite;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .order-now-button:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 12px 24px rgba(255, 127, 63, 0.5);
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 8px 20px rgba(255, 127, 63, 0.4);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 12px 24px rgba(255, 127, 63, 0.5);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 8px 20px rgba(255, 127, 63, 0.4);
+            }
+        }
     </style>
 </head>
 <body>
@@ -59,7 +96,8 @@
             <div class="subtitle">
                 Struggling with midday slumps? Discover premium yerba mate infused with energizing herbs and spices for sustained energy and sharp focus.
             </div>
-            <form id="waitlistForm" onsubmit="return submitForm(event)">
+            <a href="/checkout" class="order-now-button">ORDER NOW 🔥</a>
+            <form id="waitlistForm" onsubmit="return submitForm(event)" style="margin-top: 30px;">
                 <div class="form-group">
                     <input type="email" id="email" placeholder="Enter your email" required>
                     <button type="submit" class="button">JOIN NOW ↓</button>

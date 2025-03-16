@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Confirmation - Itza Yerba Mate</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caesar+Dressing&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/styles.css">
+    <style>
+        .confirmation-container {
+            max-width: 800px;
+            margin: 120px auto 60px;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .confirmation-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--green-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            color: white;
+            font-size: 40px;
+        }
+
+        .confirmation-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--green-dark);
+            margin-bottom: 16px;
+        }
+
+        .confirmation-message {
+            font-size: 18px;
+            color: var(--green-main);
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+
+        .order-details {
+            background: rgba(143, 188, 148, 0.1);
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 32px;
+            text-align: left;
+        }
+
+        .order-number {
+            font-weight: 600;
+            font-size: 18px;
+            color: var(--green-dark);
+            margin-bottom: 16px;
+        }
+
+        .order-summary {
+            margin-bottom: 24px;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(74, 120, 86, 0.1);
+        }
+
+        .item-name {
+            font-weight: 500;
+            color: var(--green-dark);
+        }
+
+        .order-total {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--green-dark);
+            margin-top: 16px;
+        }
+
+        .shipping-info {
+            margin-bottom: 24px;
+        }
+
+        .shipping-title {
+            font-weight: 600;
+            color: var(--green-dark);
+            margin-bottom: 8px;
+        }
+
+        .shipping-address {
+            color: var(--green-main);
+            line-height: 1.6;
+        }
+
+        .button-container {
+            margin-top: 32px;
+        }
+
+        .home-button {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--orange-main) 0%, var(--orange-light) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(255, 127, 63, 0.2);
+        }
+
+        .home-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 127, 63, 0.3);
+        }
+
+        .email-note {
+            margin-top: 24px;
+            color: var(--green-main);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="announcement-banner">
+        <div class="banner-content">
+            <span>🎁 THANK YOU FOR YOUR ORDER! 🎁</span>
+            <span>🎁 THANK YOU FOR YOUR ORDER! 🎁</span>
+            <span>🎁 THANK YOU FOR YOUR ORDER! 🎁</span>
+            <span>🎁 THANK YOU FOR YOUR ORDER! 🎁</span>
+            <span>🎁 THANK YOU FOR YOUR ORDER! 🎁</span>
+        </div>
+    </div>
+
+    <div class="confirmation-container">
+        <div class="confirmation-icon">✓</div>
+        <h1 class="confirmation-title">Order Confirmed!</h1>
+        <p class="confirmation-message">
+            Thank you for your order. We've received your payment and will process your order shortly.
+            You will receive a confirmation email with your order details.
+        </p>
+
+        <div class="order-details">
+            <div class="order-number">Order #ITZ-2025-0316</div>
+            
+            <div class="order-summary">
+                <div class="order-item">
+                    <div class="item-name">ITZA YERBA MATE - Premium Yerba Mate Set</div>
+                    <div class="item-price">$39.99</div>
+                </div>
+                <div class="order-item">
+                    <div class="item-name">Shipping - Standard</div>
+                    <div class="item-price">Free</div>
+                </div>
+                <div class="order-total">
+                    <div>Total</div>
+                    <div>$39.99</div>
+                </div>
+            </div>
+
+            <div class="shipping-info">
+                <div class="shipping-title">Shipping Information</div>
+                <div class="shipping-address">
+                    Your order will be shipped to the address you provided during checkout.
+                    <br>
+                    Estimated delivery: 5-7 business days
+                </div>
+            </div>
+        </div>
+
+        <div class="email-note">
+            A confirmation email has been sent to your email address. If you don't see it in your inbox, please check your spam folder.
+        </div>
+
+        <div class="button-container">
+            <a href="/" class="home-button">Return to Home</a>
+        </div>
+    </div>
+</body>
+</html>

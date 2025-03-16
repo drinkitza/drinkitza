@@ -1,5 +1,5 @@
 # Itza Yerba Mate - Waitlist Signup
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, render_template
 import os
 from datetime import datetime
 import requests
@@ -11,8 +11,26 @@ import base64
 import json
 import time
 import csv
+import stripe
+
+# Load environment variables from .env file if present
+if os.path.exists('.env'):
+    from dotenv import load_dotenv
+    load_dotenv()
 
 app = Flask(__name__)
+
+# Stripe configuration
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET', '')
+
+# Initialize Stripe
+if not STRIPE_PUBLISHABLE_KEY or not STRIPE_SECRET_KEY:
+    print("Warning: Stripe API keys not found in environment variables.")
+    print("Please set STRIPE_PUBLISHABLE_KEY and STRIPE_SECRET_KEY in your .env file or Vercel environment variables.")
+
+stripe.api_key = STRIPE_SECRET_KEY
 
 # GitHub configuration for waitlist storage
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
@@ -48,8 +66,117 @@ def log_error(e, context=""):
     print(error_msg)
     return error_msg
 
-def send_confirmation_email(recipient_email):
-    """Send the beautiful thank you email to new waitlist signups"""
+def send_confirmation_email(recipient_email, order_type=None, items=None):
+    """Send the beautiful thank you email to new waitlist signups or order confirmations"""
+    try:
+        # First try EmailJS (primary method)
+        email_service_url = os.getenv('EMAIL_SERVICE_URL', 'https://api.emailjs.com/api/v1.0/email/send')
+        email_service_user_id = os.getenv('EMAIL_SERVICE_USER_ID')
+        email_service_access_token = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
+        
+        # Select the appropriate template based on order_type
+        if order_type == "stripe":
+            # Order confirmation template
+            email_service_template_id = os.getenv('EMAIL_ORDER_TEMPLATE_ID', os.getenv('EMAIL_SERVICE_TEMPLATE_ID'))
+            subject = "Your Itza Yerba Mate Order Confirmation"
+            
+            # Format items for the email
+            items_html = ""
+            total = 0
+            
+            if items:
+                for item in items:
+                    name = item.get('name', 'Product')
+                    price = item.get('price', 0)
+                    quantity = item.get('quantity', 1)
+                    item_total = price * quantity
+                    total += item_total
+                    
+                    price_display = "FREE" if price == 0 else f"${price/100:.2f}"
+                    items_html += f"<tr><td>{name}</td><td>{quantity}</td><td>{price_display}</td></tr>"
+                
+                items_html = f"""
+                <table border="0" cellpadding="8" cellspacing="0" style="width:100%">
+                    <tr style="background-color:#f8f8f8">
+                        <th align="left">Product</th>
+                        <th align="left">Qty</th>
+                        <th align="left">Price</th>
+                    </tr>
+                    {items_html}
+                    <tr style="font-weight:bold">
+                        <td colspan="2" align="right">Total:</td>
+                        <td>${total/100:.2f}</td>
+                    </tr>
+                </table>
+                """
+            
+            message = f"""
+            <h2>Thank you for your order!</h2>
+            <p>We're excited to bring you the authentic taste of Itza Yerba Mate with our premium loose leaf tea and traditional drinking accessories.</p>
+            {items_html}
+            <p>Your order will be shipped soon. We'll send you tracking information once it's on the way.</p>
+            <p>Enjoy the natural ingredients in our yerba mate: yerba mate, ginger, mint, lemon peel, ginseng, and star anise.</p>
+            """
+        else:
+            # Waitlist confirmation template (original behavior)
+            email_service_template_id = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
+            subject = "Welcome to the Itza Yerba Mate Waitlist!"
+            message = """
+            <h2>Thank you for joining our waitlist!</h2>
+            <p>We're excited to bring you the authentic taste of Itza Yerba Mate.</p>
+            <p>Our yerba mate features natural ingredients: yerba mate, ginger, mint, lemon peel, ginseng, and star anise.</p>
+            <p>We'll notify you as soon as we launch!</p>
+            """
+        
+        if email_service_user_id and email_service_template_id:
+            payload = {
+                'service_id': 'default_service',
+                'template_id': email_service_template_id,
+                'user_id': email_service_user_id,
+                'accessToken': email_service_access_token,
+                'template_params': {
+                    'to_email': recipient_email,
+                    'subject': subject,
+                    'message': message
+                }
+            }
+            
+            response = requests.post(email_service_url, json=payload)
+            
+            if response.status_code == 200:
+                print(f"Email sent successfully to {recipient_email}")
+                return True
+            else:
+                print(f"Failed to send email via EmailJS: {response.text}")
+                # Fall back to queue system
+        
+        # Fall back to queue system if EmailJS fails or is not configured
+        queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
+        os.makedirs(queue_dir, exist_ok=True)
+        
+        timestamp = int(time.time())
+        filename = f"{timestamp}_{recipient_email.replace('@', '_at_')}.json"
+        file_path = os.path.join(queue_dir, filename)
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                'email': recipient_email,
+                'timestamp': timestamp,
+                'subject': subject,
+                'message': message,
+                'order_type': order_type,
+                'items': items
+            }, f)
+        
+        print(f"Email queued for {recipient_email}")
+        return True
+        
+    except Exception as e:
+        print(f"Error sending email: {str(e)}")
+        return False
+
+def send_educational_email(recipient_email):
+    """Send the educational email about yerba mate history and benefits"""
     try:
         # First try EmailJS (primary method)
         if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
@@ -74,103 +201,6 @@ def send_confirmation_email(recipient_email):
                 
                 if response.status_code == 200:
                     print(f"Email sent successfully to {recipient_email} via EmailJS")
-                    return True
-                else:
-                    print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
-                    # Fall back to SMTP or queue
-            except Exception as e:
-                print(f"EmailJS error: {str(e)}")
-                # Fall back to SMTP or queue
-        
-        # Create a multipart message for SMTP or queue
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "Thanks for Joining Itza Yerba Mate's Pre-order Waitlist!"
-
-        # Read the HTML template
-        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'confirmation_template.html')
-        
-        if not os.path.exists(template_path):
-            print(f"Warning: Email template not found at {template_path}")
-            html_content = "<p>Thanks for joining Itza Yerba Mate's pre-order waitlist!</p>"
-        else:
-            with open(template_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-        
-        # Replace placeholders
-        html_content = html_content.replace('{{email}}', recipient_email)
-        
-        # Create HTML version
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
-        
-        # Try to send email via SMTP as second option
-        if SENDER_APP_PASSWORD:
-            try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-                server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
-                server.send_message(msg)
-                server.quit()
-                print(f"Email sent successfully to {recipient_email} via SMTP")
-                return True
-            except Exception as e:
-                print(f"SMTP sending failed: {str(e)}")
-                # Fall back to queue
-        
-        # Queue the email if both EmailJS and SMTP fail
-        queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
-        os.makedirs(queue_dir, exist_ok=True)
-        
-        email_data = {
-            'to': recipient_email,
-            'from': SENDER_EMAIL,
-            'subject': msg['Subject'],
-            'html': html_content
-        }
-        
-        timestamp = str(int(time.time()))
-        filename = f"{timestamp}_{recipient_email.replace('@', '_at_')}.json"
-        filepath = os.path.join(queue_dir, filename)
-        
-        with open(filepath, 'w', encoding='utf-8') as f:
-            json.dump(email_data, f, indent=2)
-        
-        print(f"Email queued for {recipient_email} at {filepath}")
-        return True
-        
-    except Exception as e:
-        log_error(e, "send_confirmation_email")
-        return False
-
-def send_educational_email(recipient_email):
-    """Send the educational email about yerba mate history and benefits"""
-    try:
-        # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
-            try:
-                emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
-                    'template_params': {
-                        'to_email': recipient_email,
-                        'email': recipient_email,  # For template replacement
-                        'template_type': 'educational'  # Flag to use educational template
-                    },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
-                }
-                
-                headers = {'Content-Type': 'application/json'}
-                response = requests.post(
-                    'https://api.emailjs.com/api/v1.0/email/send',
-                    headers=headers,
-                    json=emailjs_data
-                )
-                
-                if response.status_code == 200:
-                    print(f"Educational email sent successfully to {recipient_email} via EmailJS")
                     return True
                 else:
                     print(f"EmailJS sending failed with status {response.status_code}: {response.text}")
@@ -228,7 +258,7 @@ def send_educational_email(recipient_email):
         }
         
         timestamp = str(int(time.time()))
-        filename = f"{timestamp}_educational_{recipient_email.replace('@', '_at_')}.json"
+        filename = f"{timestamp}_{recipient_email.replace('@', '_at_')}.json"
         filepath = os.path.join(queue_dir, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -731,6 +761,16 @@ def admin():
     """Serve the admin page"""
     return send_from_directory('.', 'admin.html')
 
+@app.route('/checkout')
+def checkout():
+    """Serve the checkout page"""
+    return send_from_directory('.', 'checkout.html')
+
+@app.route('/order-confirmation')
+def order_confirmation():
+    """Serve the order confirmation page"""
+    return send_from_directory('.', 'order-confirmation.html')
+
 @app.route('/<path:path>')
 def static_files(path):
     """Serve static files"""
@@ -1049,5 +1089,145 @@ def submit_email():
         error_msg = log_error(e, "submit_email")
         return jsonify({'error': 'Failed to save email', 'details': error_msg}), 500
 
+@app.route('/api/create-payment', methods=['POST'])
+def create_payment():
+    """Process a payment through Stripe"""
+    try:
+        data = request.json
+        payment_method_id = data.get('paymentMethodId')
+        amount = data.get('amount', 2479)  # Default to $24.79 in cents
+        currency = data.get('currency', 'usd')
+        country = data.get('country', 'US')
+        email = data.get('email')
+        
+        # Create metadata for the order items
+        metadata = {
+            'product_1': 'Itza Yerba Mate Loose Leaf - $24.79',
+            'product_2': 'Traditional Mate Gourd - FREE',
+            'product_3': 'Stainless Steel Bombilla - FREE',
+            'total_amount': '$24.79'
+        }
+        
+        # Set automatic_payment_methods to True to enable Express Checkout options
+        payment_intent = stripe.PaymentIntent.create(
+            amount=amount,
+            currency=currency,
+            payment_method=payment_method_id,
+            confirmation_method='manual',
+            confirm=True,
+            metadata=metadata,
+            automatic_payment_methods={
+                'enabled': True,
+                'allow_redirects': 'always'
+            },
+            receipt_email=email
+        )
+        
+        if payment_intent.status == 'requires_action':
+            # The payment requires additional actions, such as 3D Secure authentication
+            return jsonify({
+                'requires_action': True,
+                'clientSecret': payment_intent.client_secret,
+                'paymentIntentId': payment_intent.id
+            })
+        elif payment_intent.status == 'succeeded':
+            # The payment was successful
+            return jsonify({
+                'success': True
+            })
+        else:
+            # The payment failed for some other reason
+            return jsonify({
+                'error': 'Payment failed. Please try again.'
+            })
+    except stripe.error.CardError as e:
+        # The card was declined
+        return jsonify({
+            'error': e.user_message
+        })
+    except Exception as e:
+        # Something else went wrong
+        return jsonify({
+            'error': str(e)
+        })
+
+@app.route('/api/payment-methods', methods=['GET'])
+def get_payment_methods():
+    """
+    Get available payment methods based on country and currency
+    """
+    country = request.args.get('country', 'US')
+    currency = request.args.get('currency', 'usd')
+    
+    # Get available payment methods for the country and currency
+    payment_methods = {
+        'card': True,  # Cards are available everywhere
+        'apple_pay': True,  # Enable Apple Pay
+        'google_pay': True,  # Enable Google Pay
+        'link': True,  # Enable Link (Stripe's saved payment info)
+    }
+    
+    # Add country-specific payment methods
+    if country == 'US':
+        payment_methods['afterpay_clearpay'] = currency.lower() in ['usd', 'aud', 'cad', 'nzd', 'gbp']
+    elif country in ['GB', 'FR', 'DE', 'ES', 'IT', 'NL', 'BE', 'AT']:
+        payment_methods['klarna'] = True
+    elif country in ['AU', 'NZ']:
+        payment_methods['afterpay_clearpay'] = True
+    
+    return jsonify(payment_methods)
+
+@app.route('/api/config', methods=['GET'])
+def get_stripe_config():
+    """Return the Stripe publishable key to the frontend"""
+    return jsonify({
+        'publishableKey': STRIPE_PUBLISHABLE_KEY
+    })
+
+@app.route('/api/confirm-payment', methods=['POST'])
+def confirm_payment():
+    """Confirm a payment after a required action like 3D Secure authentication"""
+    try:
+        data = request.json
+        payment_intent_id = data.get('paymentIntentId')
+        
+        if not payment_intent_id:
+            return jsonify({'error': 'Payment intent ID is required'}), 400
+        
+        # Retrieve and confirm the PaymentIntent
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+        
+        # Check if the payment intent needs confirmation
+        if intent.status == 'requires_confirmation':
+            intent = stripe.PaymentIntent.confirm(payment_intent_id)
+        
+        # Handle different payment statuses
+        if intent.status == 'succeeded':
+            # Payment was successful
+            return jsonify({
+                'success': True,
+                'status': intent.status
+            })
+        elif intent.status == 'requires_action':
+            # Further action is needed
+            return jsonify({
+                'requires_action': True,
+                'status': intent.status,
+                'clientSecret': intent.client_secret,
+                'paymentIntentId': intent.id
+            })
+        else:
+            # Other status (processing, etc.)
+            return jsonify({
+                'success': True,
+                'status': intent.status
+            })
+            
+    except stripe.error.CardError as e:
+        return jsonify({'error': e.user_message}), 400
+    except Exception as e:
+        log_error(e, "confirm_payment")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)

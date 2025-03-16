@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout - Itza Yerba Mate</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caesar+Dressing&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="static/styles.css">
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        /* Checkout specific styles */
+        :root {
+            --green-main: #2D5A27;
+            --green-light: #8FBC94;
+            --green-dark: #1e4019;
+            --beige: #F5F1E9;
+            --gray-light: #F2F2F2;
+            --gray-medium: #E0E0E0;
+            --gray-dark: #666666;
+        }
+        
+        .checkout-container {
+            max-width: 1200px;
+            margin: 100px auto 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            padding: 0 20px;
+        }
+
+        @media (max-width: 900px) {
+            .checkout-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .checkout-form {
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .checkout-summary {
+            padding: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            align-self: start;
+        }
+
+        .checkout-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: var(--green-dark);
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .form-section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--green-dark);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            flex: 1;
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--green-dark);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--green-light);
+            border-radius: 8px;
+            font-size: 16px;
+            color: var(--green-dark);
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.9);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--green-main);
+            box-shadow: 0 0 0 4px rgba(74, 120, 86, 0.1);
+        }
+
+        .form-control::placeholder {
+            color: var(--green-light);
+        }
+
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234A7856' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            padding-right: 40px;
+        }
+
+        .product-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid rgba(74, 120, 86, 0.1);
+        }
+
+        .product-image {
+            width: 80px;
+            height: 80px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            margin-right: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 12px;
+        }
+
+        .product-details {
+            flex: 1;
+        }
+
+        .product-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--green-dark);
+        }
+
+        .product-description {
+            font-size: 14px;
+            color: var(--green-main);
+            margin-bottom: 4px;
+        }
+
+        .product-price {
+            font-weight: 600;
+            color: var(--green-dark);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(74, 120, 86, 0.1);
+        }
+
+        .summary-row.total {
+            font-weight: 700;
+            font-size: 18px;
+            border-top: 2px solid var(--green-light);
+            border-bottom: none;
+            padding-top: 16px;
+            margin-top: 8px;
+        }
+
+        .discount-form {
+            display: flex;
+            gap: 8px;
+            margin: 16px 0;
+        }
+
+        .discount-form input {
+            flex: 1;
+        }
+
+        .apply-button {
+            padding: 12px 16px;
+            background: var(--green-main);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .apply-button:hover {
+            background: var(--green-dark);
+        }
+
+        .submit-button {
+            background-color: var(--green-main);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 16px;
+            transition: background-color 0.3s ease;
+        }
+        
+        .submit-button:hover {
+            background-color: #1e4019;
+        }
+        
+        .submit-button:disabled {
+            background-color: #8FBC94;
+            cursor: not-allowed;
+        }
+
+        .checkout-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--orange-main) 0%, var(--orange-light) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 24px;
+            box-shadow: 0 4px 12px rgba(255, 127, 63, 0.2);
+        }
+
+        .checkout-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 127, 63, 0.3);
+        }
+
+        .payment-options {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .payment-option {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid var(--green-light);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .payment-option.active {
+            border-color: var(--green-dark);
+            background-color: rgba(74, 120, 86, 0.05);
+        }
+
+        .payment-option img {
+            height: 24px;
+        }
+
+        .card-element {
+            padding: 16px;
+            border: 2px solid var(--green-light);
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .secure-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--green-main);
+            margin-top: 16px;
+        }
+
+        .secure-badge svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 24px;
+            color: var(--green-main);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .back-link:hover {
+            color: var(--green-dark);
+        }
+
+        .back-link svg {
+            width: 16px;
+            height: 16px;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
+        .shipping-method {
+            padding: 16px;
+            border: 2px solid var(--green-light);
+            border-radius: 8px;
+            margin-bottom: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .shipping-method.active {
+            border-color: var(--green-dark);
+            background-color: rgba(74, 120, 86, 0.05);
+        }
+
+        .shipping-method-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shipping-method-title {
+            font-weight: 600;
+            color: var(--green-dark);
+        }
+
+        .shipping-method-price {
+            font-weight: 600;
+            color: var(--green-dark);
+        }
+
+        .shipping-method-description {
+            font-size: 14px;
+            color: var(--green-main);
+            margin-top: 4px;
+        }
+
+        /* Credit card icons */
+        .card-icons {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 25px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Remember me section */
+        .remember-section {
+            margin-top: 24px;
+            padding: 16px;
+            border: 1px solid rgba(74, 120, 86, 0.2);
+            border-radius: 8px;
+            background-color: rgba(74, 120, 86, 0.02);
+        }
+
+        .remember-title {
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--green-dark);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-top: 4px;
+        }
+
+        .checkbox-group label {
+            flex: 1;
+            font-size: 14px;
+            color: var(--green-main);
+        }
+
+        .terms-text {
+            font-size: 12px;
+            color: var(--green-main);
+            margin-top: 16px;
+            line-height: 1.5;
+        }
+
+        .terms-text a {
+            color: var(--green-dark);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .terms-text a:hover {
+            text-decoration: underline;
+        }
+
+        /* Recurring info */
+        .recurring-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 14px;
+            color: var(--green-main);
+        }
+
+        .info-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 1px solid var(--green-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        /* Error message */
+        #card-errors {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        /* Express Checkout Styles */
+        .express-checkout-section {
+            margin-bottom: 20px;
+        }
+        
+        .express-checkout-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: var(--green-main);
+        }
+        
+        .separator {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .separator::before,
+        .separator::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .separator span {
+            padding: 0 10px;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        
+        /* Free item styling */
+        .free-item {
+            color: var(--green-main);
+            font-weight: 600;
+        }
+        
+        /* Product image styling */
+        .product-image img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        
+        /* Urgency Banner Styles - Simplified */
+        .urgency-banner {
+            background-color: var(--green-main);
+            color: white;
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .urgency-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .urgency-message {
+            font-weight: 500;
+        }
+        
+        .countdown-timer {
+            font-weight: 600;
+        }
+        
+        .countdown-timer span {
+            background-color: rgba(0,0,0,0.2);
+            padding: 2px 4px;
+            border-radius: 2px;
+            margin: 0 1px;
+            min-width: 24px;
+            display: inline-block;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Simplified Urgency Banner with Countdown Timer -->
+    <div class="urgency-banner">
+        <div class="urgency-content">
+            <div class="urgency-message">
+                <strong>LIMITED TIME OFFER:</strong> Free Traditional Gourd & Bombilla with purchase
+            </div>
+            <div class="countdown-timer">
+                Ends in: <span id="countdown-days">00</span>d <span id="countdown-hours">00</span>h <span id="countdown-minutes">00</span>m <span id="countdown-seconds">00</span>s
+            </div>
+        </div>
+    </div>
+
+    <div class="checkout-container">
+        <div class="checkout-form">
+            <a href="/" class="back-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+                Back to shopping
+            </a>
+            <h1 class="checkout-title">Express checkout</h1>
+            
+            <div class="payment-section">
+                <h2 class="form-section-title">Payment</h2>
+                
+                <!-- Express Checkout Options -->
+                <div class="express-checkout-section">
+                    <h3 class="express-checkout-title">Express Checkout</h3>
+                    
+                    <div id="express-payment-element"></div>
+                </div>
+                
+                <div class="separator">
+                    <span>or pay with card</span>
+                </div>
+                
+                <div class="payment-options">
+                    <div class="payment-option active">
+                        <div class="payment-option-header">
+                            <div class="payment-option-title">Credit Card</div>
+                            <div class="payment-option-icons">
+                                <img src="static/images/visa.svg" alt="Visa">
+                                <img src="static/images/mastercard.svg" alt="Mastercard">
+                                <img src="static/images/amex.svg" alt="American Express">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="card-element" class="card-element">
+                    <!-- Stripe Card Element will be inserted here -->
+                </div>
+                <div id="card-errors" class="card-errors" role="alert"></div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="form-section-title">Contact</h2>
+                <div class="form-group">
+                    <input type="email" class="form-control" placeholder="Email" required>
+                </div>
+                
+                <!-- Hidden currency selector -->
+                <input type="hidden" id="currency" value="usd">
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="newsletter">
+                    <label for="newsletter">Email me with news and offers</label>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="form-section-title">Shipping</h2>
+                <div class="form-group">
+                    <select id="country" class="form-control">
+                        <option value="US">United States</option>
+                        <option value="CA">Canada</option>
+                        <option value="GB">United Kingdom</option>
+                        <option value="AU">Australia</option>
+                        <option value="DE">Germany</option>
+                        <option value="FR">France</option>
+                        <option value="ES">Spain</option>
+                        <option value="IT">Italy</option>
+                        <option value="NL">Netherlands</option>
+                        <option value="JP">Japan</option>
+                        <option value="BR">Brazil</option>
+                        <option value="MX">Mexico</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="First name (optional)">
+                    </div>
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="Last name" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <input type="text" class="form-control" placeholder="Address" required>
+                </div>
+                <div class="form-group">
+                    <input type="text" class="form-control" placeholder="Apartment, suite, etc. (optional)">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="City" required>
+                    </div>
+                    <div class="form-group">
+                        <select class="form-control" required>
+                            <option value="">State</option>
+                            <option value="AL">Alabama</option>
+                            <option value="AK">Alaska</option>
+                            <option value="AZ">Arizona</option>
+                            <!-- Add all states here -->
+                            <option value="WY">Wyoming</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" class="form-control" placeholder="ZIP code" required>
+                    </div>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="text-updates">
+                    <label for="text-updates">Text me with news and offers</label>
+                </div>
+            </div>
+            
+            <div class="form-section">
+                <h2 class="form-section-title">Shipping method</h2>
+                <div class="shipping-method active">
+                    <div class="shipping-method-header">
+                        <div class="shipping-method-title">Standard Shipping</div>
+                        <div class="shipping-method-price">Free</div>
+                    </div>
+                    <div class="shipping-method-description">5-7 business days</div>
+                </div>
+                <div class="shipping-method">
+                    <div class="shipping-method-header">
+                        <div class="shipping-method-title">Express Shipping</div>
+                        <div class="shipping-method-price">$9.99</div>
+                    </div>
+                    <div class="shipping-method-description">2-3 business days</div>
+                </div>
+            </div>
+            
+            <div class="remember-section">
+                <h3 class="remember-title">Remember me</h3>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="save-info">
+                    <label for="save-info">Save my information for a faster checkout with a Shop account</label>
+                </div>
+                <div class="form-group">
+                    <input type="text" class="form-control" placeholder="First name">
+                </div>
+                <div class="form-group">
+                    <div class="form-row">
+                        <span style="display: flex; align-items: center; padding: 0 12px; background: #f5f5f5; border-radius: 8px 0 0 8px; border: 2px solid var(--green-light); border-right: none;">+1</span>
+                        <input type="tel" class="form-control" style="border-radius: 0 8px 8px 0;" placeholder="Mobile phone number">
+                    </div>
+                </div>
+                <div class="secure-badge">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    Secure and encrypted
+                </div>
+            </div>
+            
+            <div class="terms-text">
+                One or more items in your cart is a deferred or recurring purchase. By continuing with your payment, you agree that your payment method will automatically be charged at the price and frequency listed on this page until it ends or you cancel. All cancellations are subject to the <a href="#">cancellation policy</a>.
+            </div>
+            
+            <button id="submit-button" class="submit-button">Pay now</button>
+            
+            <div class="terms-text" style="margin-top: 16px;">
+                Your info will be saved to a Shop account. By continuing, you agree to Shop's <a href="#">Terms of Service</a> and acknowledge the <a href="#">Privacy Policy</a>.
+            </div>
+        </div>
+        
+        <div class="checkout-summary">
+            <h2 class="checkout-title">Order Summary</h2>
+            
+            <div class="product-item">
+                <div class="product-image">
+                    <img src="static/images/yerba-mate-product.jpg" alt="Yerba Mate" onerror="this.src='static/images/product-placeholder.jpg'">
+                </div>
+                <div class="product-details">
+                    <div class="product-title">ITZA YERBA MATE LOOSE LEAF</div>
+                    <div class="product-description">Premium Organic Yerba Mate</div>
+                </div>
+                <div class="product-price">$24.79</div>
+            </div>
+            
+            <div class="product-item">
+                <div class="product-image">
+                    <img src="static/images/gourd-product.jpg" alt="Gourd" onerror="this.src='static/images/product-placeholder.jpg'">
+                </div>
+                <div class="product-details">
+                    <div class="product-title">TRADITIONAL MATE GOURD</div>
+                    <div class="product-description">Authentic Drinking Vessel</div>
+                </div>
+                <div class="product-price free-item">FREE</div>
+            </div>
+            
+            <div class="product-item">
+                <div class="product-image">
+                    <img src="static/images/bombilla-product.jpg" alt="Bombilla" onerror="this.src='static/images/product-placeholder.jpg'">
+                </div>
+                <div class="product-details">
+                    <div class="product-title">STAINLESS STEEL BOMBILLA</div>
+                    <div class="product-description">Metal Filtering Straw</div>
+                </div>
+                <div class="product-price free-item">FREE</div>
+            </div>
+            
+            <div class="discount-form">
+                <input type="text" class="form-control" placeholder="Discount code">
+                <button class="apply-button">Apply</button>
+            </div>
+            
+            <div class="summary-row">
+                <div>Subtotal</div>
+                <div>$24.79</div>
+            </div>
+            
+            <div class="summary-row">
+                <div>Shipping</div>
+                <div>Free</div>
+            </div>
+            
+            <div class="summary-row total">
+                <div>Total</div>
+                <div><span style="font-size: 14px; color: var(--green-main); margin-right: 4px;">USD</span> $24.79</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Countdown Timer Logic
+            function startCountdown() {
+                // Set the end date to 3 days from now
+                const endDate = new Date();
+                endDate.setDate(endDate.getDate() + 3);
+                endDate.setHours(23, 59, 59, 0);
+                
+                // Update the countdown every second
+                const countdownTimer = setInterval(function() {
+                    const now = new Date().getTime();
+                    const distance = endDate - now;
+                    
+                    // Calculate days, hours, minutes, and seconds
+                    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                    
+                    // Display the countdown
+                    document.getElementById('countdown-days').textContent = days.toString().padStart(2, '0');
+                    document.getElementById('countdown-hours').textContent = hours.toString().padStart(2, '0');
+                    document.getElementById('countdown-minutes').textContent = minutes.toString().padStart(2, '0');
+                    document.getElementById('countdown-seconds').textContent = seconds.toString().padStart(2, '0');
+                    
+                    // If the countdown is over, display a message
+                    if (distance < 0) {
+                        clearInterval(countdownTimer);
+                        document.querySelector('.urgency-banner').innerHTML = '<div class="urgency-content"><div class="urgency-message">The special offer has ended!</div></div>';
+                    }
+                }, 1000);
+            }
+            
+            // Start the countdown
+            startCountdown();
+            
+            // Fetch Stripe publishable key from server
+            fetch('/api/config')
+                .then(response => response.json())
+                .then(data => {
+                    const stripe = Stripe(data.publishableKey);
+                    
+                    // Create a Stripe client
+                    const elements = stripe.elements({
+                        appearance: {
+                            theme: 'stripe',
+                            variables: {
+                                colorPrimary: '#5a7c5a',
+                                colorBackground: '#ffffff',
+                                colorText: '#30313d',
+                                colorDanger: '#df1b41',
+                                fontFamily: 'Roboto, Open Sans, Segoe UI, sans-serif',
+                                spacingUnit: '4px',
+                                borderRadius: '4px'
+                            }
+                        },
+                        clientSecret: data.clientSecret,
+                        paymentMethodCreation: 'manual'
+                    });
+                    
+                    // Create express payment element
+                    const expressPaymentElement = elements.create('payment', {
+                        wallets: {
+                            applePay: 'auto',
+                            googlePay: 'auto'
+                        }
+                    });
+                    
+                    // Mount the express payment element
+                    expressPaymentElement.mount('#express-payment-element');
+                    
+                    // Create card element
+                    const cardElement = elements.create('card', {
+                        style: {
+                            base: {
+                                color: '#32325d',
+                                fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+                                fontSmoothing: 'antialiased',
+                                fontSize: '16px',
+                                '::placeholder': {
+                                    color: '#aab7c4'
+                                }
+                            },
+                            invalid: {
+                                color: '#fa755a',
+                                iconColor: '#fa755a'
+                            }
+                        }
+                    });
+                    
+                    // Mount the card element
+                    cardElement.mount('#card-element');
+                    
+                    // Get form elements
+                    const form = document.getElementById('submit-button');
+                    const cardErrors = document.getElementById('card-errors');
+                    
+                    // Listen for express payment element changes
+                    expressPaymentElement.on('change', function(event) {
+                        if (event.complete) {
+                            // Enable the Pay button if the payment element is complete
+                            form.disabled = false;
+                        }
+                    });
+                    
+                    // Handle express payment element submission
+                    expressPaymentElement.on('click', async function(event) {
+                        if (event.paymentMethod) {
+                            // Process the payment with the selected express payment method
+                            await processPayment(event.paymentMethod.id);
+                        }
+                    });
+                    
+                    // Handle card payment submission
+                    form.addEventListener('click', async function(event) {
+                        event.preventDefault();
+                        
+                        // Disable the submit button to prevent multiple clicks
+                        form.disabled = true;
+                        form.textContent = 'Processing...';
+                        
+                        // Get selected currency
+                        const currency = document.getElementById('currency').value;
+                        
+                        try {
+                            // Create payment method
+                            const { paymentMethod, error } = await stripe.createPaymentMethod({
+                                type: 'card',
+                                card: cardElement
+                            });
+                            
+                            if (error) {
+                                // Show error in the card element
+                                cardErrors.textContent = error.message;
+                                form.disabled = false;
+                                form.textContent = 'Pay now';
+                            } else {
+                                await processPayment(paymentMethod.id);
+                            }
+                        } catch (err) {
+                            console.error(err);
+                            cardErrors.textContent = 'An unexpected error occurred. Please try again.';
+                            form.disabled = false;
+                            form.textContent = 'Pay now';
+                        }
+                    });
+                    
+                    // Function to process payment with payment method ID
+                    async function processPayment(paymentMethodId) {
+                        // Get shipping information
+                        const country = document.getElementById('country').value;
+                        const email = document.querySelector('input[type="email"]').value;
+                        const currency = document.getElementById('currency').value;
+                        
+                        // Send payment method ID to your server
+                        const response = await fetch('/api/create-payment', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                paymentMethodId: paymentMethodId,
+                                amount: 2479, // $24.79 in cents
+                                currency: currency,
+                                country: country,
+                                email: email
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.error) {
+                            // Show error from server
+                            cardErrors.textContent = result.error;
+                            form.disabled = false;
+                            form.textContent = 'Pay now';
+                        } else if (result.requires_action) {
+                            // Use Stripe.js to handle required card action
+                            const { error: actionError } = await stripe.handleCardAction(
+                                result.clientSecret
+                            );
+                            
+                            if (actionError) {
+                                // Show error from Stripe.js
+                                cardErrors.textContent = actionError.message;
+                                form.disabled = false;
+                                form.textContent = 'Pay now';
+                            } else {
+                                // The card action has been handled
+                                // The PaymentIntent can be confirmed again on the server
+                                const serverResponse = await fetch('/api/confirm-payment', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        paymentIntentId: result.paymentIntentId
+                                    })
+                                });
+                                
+                                const serverResult = await serverResponse.json();
+                                
+                                if (serverResult.error) {
+                                    // Show error from server
+                                    cardErrors.textContent = serverResult.error;
+                                    form.disabled = false;
+                                    form.textContent = 'Pay now';
+                                } else {
+                                    // Payment successful, redirect to success page
+                                    window.location.href = '/order-confirmation';
+                                }
+                            }
+                        } else {
+                            // Payment successful, redirect to success page
+                            window.location.href = '/order-confirmation';
+                        }
+                    }
+                });
+        });
+    </script>
+</body>
+</html>
