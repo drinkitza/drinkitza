@@ -183,14 +183,21 @@ def send_educational_email(recipient_email):
         msg = MIMEMultipart('alternative')
         msg['From'] = SENDER_EMAIL
         msg['To'] = recipient_email
-        msg['Subject'] = "Discover the Magic of Yerba Mate - Itza's Educational Guide"
+        msg['Subject'] = "🔥 ITZA ORDERS ARE OPEN! Limited Time Offer Inside"
 
-        # Read the HTML template
-        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'educational_template.html')
+        # Read the HTML template - Using order_ready_educational.html instead of educational_template.html
+        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'order_ready_educational.html')
         
         if not os.path.exists(template_path):
-            print(f"Warning: Educational email template not found at {template_path}")
-            html_content = "<p>Learn about the amazing benefits of yerba mate!</p>"
+            print(f"Warning: Order-ready educational template not found at {template_path}")
+            # Fall back to regular educational template
+            template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'educational_template.html')
+            if not os.path.exists(template_path):
+                print(f"Warning: Educational email template not found at {template_path}")
+                html_content = "<p>Learn about the amazing benefits of yerba mate!</p>"
+            else:
+                with open(template_path, 'r', encoding='utf-8') as f:
+                    html_content = f.read()
         else:
             with open(template_path, 'r', encoding='utf-8') as f:
                 html_content = f.read()
