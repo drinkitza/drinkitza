@@ -14,15 +14,14 @@ import traceback
 # Email configuration - SMTP fallback
 SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
-SENDER_EMAIL = 'drinkitza@gmail.com'
-SENDER_APP_PASSWORD = ''
+SENDER_EMAIL = os.getenv('SENDER_EMAIL', 'drinkitza@gmail.com')
+SENDER_APP_PASSWORD = os.getenv('SENDER_APP_PASSWORD', '')
 
 # EmailJS configuration (primary method)
-EMAIL_SERVICE_URL = 'https://api.emailjs.com/api/v1.0/email/send'
-EMAIL_SERVICE_USER_ID = 'user_7vN9gJQJbgGZR5LpJqRBt'
-EMAIL_SERVICE_TEMPLATE_ID = 'template_confirmation'
-EMAIL_SERVICE_ACCESS_TOKEN = ''
-EMAIL_SERVICE_ID = 'service_itza'
+EMAIL_SERVICE_URL = os.getenv('EMAIL_SERVICE_URL')
+EMAIL_SERVICE_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID')
+EMAIL_SERVICE_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
+EMAIL_SERVICE_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
 
 def log_error(e, context=""):
     """Log errors with context for easier debugging"""
@@ -43,7 +42,7 @@ def send_email_via_emailjs(to_email, html_content):
             return False, "EmailJS configuration incomplete"
         
         emailjs_data = {
-            'service_id': EMAIL_SERVICE_ID,
+            'service_id': EMAIL_SERVICE_URL,
             'template_id': EMAIL_SERVICE_TEMPLATE_ID,
             'user_id': EMAIL_SERVICE_USER_ID,
             'template_params': {
