@@ -34,16 +34,54 @@
             background-color: #FF7F3F;
             transform: scale(1.1);
         }
+        
+        .sold-out-button {
+            display: inline-block;
+            font-size: 28px;
+            padding: 16px 36px;
+            background-color: #888888;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            margin: 20px 0;
+            cursor: default;
+        }
+        
+        .thank-you-message {
+            margin: 20px auto;
+            max-width: 600px;
+            padding: 20px;
+            background-color: rgba(45, 90, 39, 0.1);
+            border-radius: 10px;
+            text-align: center;
+            color: #2D5A27;
+        }
+        
+        .next-drop-waitlist {
+            margin-top: 30px;
+            border-top: 2px dashed #2D5A27;
+            padding-top: 30px;
+        }
+        
+        .next-drop-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2D5A27;
+            margin-bottom: 15px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="announcement-banner">
         <div class="banner-content">
-            <span>🔥 ORDERING IS NOW LIVE! GET YOUR YERBA MATE TODAY 🔥</span>
-            <span>🔥 ORDERING IS NOW LIVE! GET YOUR YERBA MATE TODAY 🔥</span>
-            <span>🔥 ORDERING IS NOW LIVE! GET YOUR YERBA MATE TODAY 🔥</span>
-            <span>🔥 ORDERING IS NOW LIVE! GET YOUR YERBA MATE TODAY 🔥</span>
-            <span>🔥 ORDERING IS NOW LIVE! GET YOUR YERBA MATE TODAY 🔥</span>
+            <span> FIRST DROP SOLD OUT - THANK YOU FOR YOUR SUPPORT! </span>
+            <span> FIRST DROP SOLD OUT - THANK YOU FOR YOUR SUPPORT! </span>
+            <span> FIRST DROP SOLD OUT - THANK YOU FOR YOUR SUPPORT! </span>
+            <span> FIRST DROP SOLD OUT - THANK YOU FOR YOUR SUPPORT! </span>
+            <span> FIRST DROP SOLD OUT - THANK YOU FOR YOUR SUPPORT! </span>
         </div>
     </div>
     <div class="beta-badge">beta access</div>
@@ -59,18 +97,33 @@
             <div class="subtitle">
                 Struggling with midday slumps? Discover premium yerba mate infused with energizing herbs and spices for sustained energy and sharp focus.
             </div>
+            
+            <!-- SOLD OUT Button -->
             <div class="order-button-container" style="text-align: center; margin: 30px 0;">
-                <a href="https://buy.stripe.com/8wM7tff4LfEg6EUbII" class="button" style="display: inline-block; font-size: 22px; padding: 16px 36px; background-color: #FF7F3F; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: all 0.3s ease;">🔥 ORDER NOW 🔥</a>
-                <p style="margin-top: 15px; font-size: 16px; color: #2D5A27; font-weight: 500;">Includes free traditional gourd and bombilla!</p>
+                <div class="sold-out-button">SOLD OUT</div>
             </div>
-            <form id="waitlistForm" onsubmit="return submitForm(event)">
-                <div class="form-group">
-                    <input type="email" id="email" placeholder="Enter your email" required>
-                    <button type="submit" class="button">JOIN NOW ↓</button>
-                </div>
-                <div class="promo-text">Stay updated with Itza news and get exclusive offers</div>
-                <div id="message" class="message"></div>
-            </form>
+            
+            <!-- Thank You Message -->
+            <div class="thank-you-message">
+                <h3>Thank You to Our Amazing Community!</h3>
+                <p>Our first drop of Itza Yerba Mate has completely sold out. We're overwhelmed by your support and enthusiasm!</p>
+                <p>We're already working on our next batch with the same commitment to quality and the perfect blend of natural ingredients that you loved.</p>
+            </div>
+            
+            <!-- Next Drop Waitlist -->
+            <div class="next-drop-waitlist">
+                <div class="next-drop-title">Join the Waitlist for Our Next Drop</div>
+                <p style="text-align: center; margin-bottom: 20px;">Be the first to know when our next batch is ready. Sign up below to secure your spot!</p>
+                
+                <form id="waitlistForm" onsubmit="return submitForm(event)">
+                    <div class="form-group">
+                        <input type="email" id="email" placeholder="Enter your email" required>
+                        <button type="submit" class="button">JOIN WAITLIST</button>
+                    </div>
+                    <div class="promo-text">Stay updated with Itza news and get exclusive offers</div>
+                    <div id="message" class="message"></div>
+                </form>
+            </div>
         </div>
     </section>
 

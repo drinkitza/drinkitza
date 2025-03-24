@@ -7,7 +7,7 @@ import traceback
 from datetime import datetime
 import dotenv
 # Import the centralized email utilities
-import email_utils
+import klaviyo_utils
 
 # Load environment variables
 dotenv.load_dotenv()
@@ -53,11 +53,10 @@ def send_announcement_emails(test_mode=False, specific_email=None, start_index=0
     """Send announcement emails to everyone on the waitlist"""
     print("\n--- Itza Yerba Mate - Order Announcement Emails ---")
     
-    # Read the email template
-    template_html = read_email_template()
-    if not template_html:
-        print("Failed to read email template. Exiting.")
-        return
+    # Get the Klaviyo order template ID
+    template_id = os.getenv('KLAVIYO_ORDER_TEMPLATE_ID', '')
+    if not template_id:
+        print("Warning: KLAVIYO_ORDER_TEMPLATE_ID not configured. Will attempt to send anyway.")
     
     # Determine recipients
     if specific_email:
@@ -93,19 +92,21 @@ def send_announcement_emails(test_mode=False, specific_email=None, start_index=0
     for i, email in enumerate(emails):
         print(f"\nProcessing {i+1}/{len(emails)}: {email}")
         
-        # Use our centralized email utilities to send
-        subject = "Itza Yerba Mate - Ordering is LIVE!"
-        success, message = email_utils.send_email(
-            email, 
-            subject, 
-            html_content=template_html,
-            template_type='order_announcement'
-        )
+        # Prepare template variables
+        template_variables = {
+            "email": email,
+            "subject": "Itza Yerba Mate - Ordering is LIVE!",
+            "first_name": email.split('@')[0],  # Basic personalization
+            "order_url": "https://buy.stripe.com/8wM7tff4LfEg6EUbII"  # Update this with your actual order URL
+        }
+        
+        # Use Klaviyo to send the email
+        success, message = klaviyo_utils.send_order_announcement_email(email, template_id)
         
         if success:
             success_count += 1
             print(f"Successfully sent to {email}: {message}")
-        elif "queued" in message.lower():
+        elif "queued" in str(message).lower():
             queue_count += 1
             print(f"Queued email for {email}: {message}")
         else:
@@ -137,7 +138,7 @@ def main():
     args = parser.parse_args()
     
     # Ensure required directories exist
-    email_utils.ensure_directories()
+    klaviyo_utils.ensure_directories()
     
     # Send announcement emails
     send_announcement_emails(
@@ -150,7 +151,7 @@ def main():
     # Process the email queue if requested
     if args.process_queue:
         print("\n--- Processing Email Queue ---")
-        processed = email_utils.process_email_queue()
+        processed = klaviyo_utils.process_email_queue()
         print(f"Processed {processed} emails from queue")
 
 if __name__ == "__main__":

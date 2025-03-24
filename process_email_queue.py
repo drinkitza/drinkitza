@@ -1,34 +1,11 @@
-#!/usr/bin/env python
-# Itza Yerba Mate - Email Queue Processor
-# This script processes any emails that were queued due to sending failures
-
+#!/usr/bin/env python3
+"""
+Process the email queue and send any pending emails via Klaviyo
+"""
 import os
-import json
-import time
-import smtplib
-import requests
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import traceback
-# Import centralized email utilities
-import email_utils
-
-# Email configuration - SMTP fallback
-SMTP_SERVER = 'smtp.gmail.com'
-SMTP_PORT = 587
-SENDER_EMAIL = os.getenv('SENDER_EMAIL', 'drinkitza@gmail.com')
-SENDER_APP_PASSWORD = os.getenv('SENDER_APP_PASSWORD', '')
-
-# EmailJS configuration
-EMAIL_SERVICE_ID = os.getenv('EMAIL_SERVICE_URL')
-EMAIL_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID')
-EMAIL_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
-EMAIL_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
-
-# Email queue directory
-EMAIL_QUEUE_DIR = os.path.join('emails', 'queue')
-PROCESSED_DIR = os.path.join('emails', 'processed')
-FAILED_DIR = os.path.join('emails', 'failed')
+import sys
+import argparse
+import klaviyo_utils
 
 def log_error(e, context=""):
     """Log errors with context for easier debugging"""
@@ -44,11 +21,11 @@ def log_error(e, context=""):
 
 def ensure_directories():
     """Ensure all required directories exist"""
-    for directory in [EMAIL_QUEUE_DIR, PROCESSED_DIR, FAILED_DIR]:
+    for directory in [os.path.join('emails', 'queue'), os.path.join('emails', 'processed'), os.path.join('emails', 'failed')]:
         os.makedirs(directory, exist_ok=True)
 
 def process_queue(max_emails=None, delay_seconds=1, verbose=True):
-    """Process emails in the queue using our centralized email utilities
+    """Process emails in the queue using Klaviyo integration
     
     Args:
         max_emails: Maximum number of emails to process (None for all)
@@ -58,15 +35,15 @@ def process_queue(max_emails=None, delay_seconds=1, verbose=True):
     Returns:
         tuple: (processed_count, success_count, failed_count)
     """
-    # Simply delegate to the centralized function
+    # Simply delegate to the Klaviyo function
     if verbose:
-        print("Processing email queue using centralized email utilities...")
+        print("Processing email queue using Klaviyo integration...")
     
-    # Ensure required directories exist (this is redundant with process_email_queue but kept for safety)
-    email_utils.ensure_directories()
+    # Ensure required directories exist
+    ensure_directories()
     
     # Process the queue
-    processed_count = email_utils.process_email_queue()
+    processed_count = klaviyo_utils.process_email_queue()
     
     if verbose:
         print(f"Queue processing complete. Processed {processed_count} emails.")
@@ -80,11 +57,11 @@ def process_legacy_queue():
     
     # Find any legacy queue files that might not fit the new format
     legacy_count = 0
-    for filename in os.listdir(EMAIL_QUEUE_DIR):
+    for filename in os.listdir(os.path.join('emails', 'queue')):
         if not filename.endswith('.json'):
             continue
             
-        filepath = os.path.join(EMAIL_QUEUE_DIR, filename)
+        filepath = os.path.join(os.path.join('emails', 'queue'), filename)
         
         try:
             # Try to read the file as JSON
@@ -97,8 +74,8 @@ def process_legacy_queue():
                 subject = email_data.get('subject', "Message from Itza Yerba Mate")
                 html_content = email_data.get('html', '')
                 
-                # Use new utilities to send
-                success, message = email_utils.send_email(
+                # Use Klaviyo integration to send
+                success, message = klaviyo_utils.send_email(
                     to_email, 
                     subject, 
                     html_content=html_content
@@ -106,10 +83,10 @@ def process_legacy_queue():
                 
                 # Move the file
                 if success:
-                    target_dir = PROCESSED_DIR
+                    target_dir = os.path.join('emails', 'processed')
                     legacy_count += 1
                 else:
-                    target_dir = FAILED_DIR
+                    target_dir = os.path.join('emails', 'failed')
                 
                 target_path = os.path.join(target_dir, filename)
                 os.rename(filepath, target_path)
@@ -122,6 +99,8 @@ def process_legacy_queue():
 def main():
     """Main function"""
     import argparse
+    import json
+    import traceback
     
     parser = argparse.ArgumentParser(description='Process queued emails')
     parser.add_argument('--max', type=int, help='Maximum number of emails to process')
@@ -146,6 +125,15 @@ def main():
         if not args.quiet:
             print(f"Queue processing complete: {processed} emails processed")
             print(f"Success: {success}, Failed: {failed}")
+
+    print("Starting email queue processing...")
+    processed_count = klaviyo_utils.process_email_queue()
+    
+    print(f"Processed {processed_count} emails from the queue")
+    
+    # Return a status code based on whether any emails were processed
+    # This is useful for cron jobs or other scheduled tasks
+    sys.exit(0 if processed_count > 0 else 1)
 
 if __name__ == "__main__":
     main()
