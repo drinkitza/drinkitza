@@ -10,6 +10,8 @@ import requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import traceback
+# Import centralized email utilities
+import email_utils
 
 # Email configuration - SMTP fallback
 SMTP_SERVER = 'smtp.gmail.com'
@@ -17,11 +19,16 @@ SMTP_PORT = 587
 SENDER_EMAIL = os.getenv('SENDER_EMAIL', 'drinkitza@gmail.com')
 SENDER_APP_PASSWORD = os.getenv('SENDER_APP_PASSWORD', '')
 
-# EmailJS configuration (primary method)
-EMAIL_SERVICE_URL = os.getenv('EMAIL_SERVICE_URL')
-EMAIL_SERVICE_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID')
-EMAIL_SERVICE_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
-EMAIL_SERVICE_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
+# EmailJS configuration
+EMAIL_SERVICE_ID = os.getenv('EMAIL_SERVICE_URL')
+EMAIL_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID')
+EMAIL_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
+EMAIL_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
+
+# Email queue directory
+EMAIL_QUEUE_DIR = os.path.join('emails', 'queue')
+PROCESSED_DIR = os.path.join('emails', 'processed')
+FAILED_DIR = os.path.join('emails', 'failed')
 
 def log_error(e, context=""):
     """Log errors with context for easier debugging"""
@@ -35,133 +42,110 @@ def log_error(e, context=""):
     print(error_msg)
     return error_msg
 
-def send_email_via_emailjs(to_email, html_content):
-    """Send email using EmailJS service"""
-    try:
-        if not all([EMAIL_SERVICE_URL, EMAIL_SERVICE_USER_ID, EMAIL_SERVICE_TEMPLATE_ID]):
-            return False, "EmailJS configuration incomplete"
-        
-        emailjs_data = {
-            'service_id': EMAIL_SERVICE_URL,
-            'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-            'user_id': EMAIL_SERVICE_USER_ID,
-            'template_params': {
-                'to_email': to_email,
-                'email': to_email  # For template replacement
-            },
-            'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
-        }
-        
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(
-            'https://api.emailjs.com/api/v1.0/email/send',
-            headers=headers,
-            json=emailjs_data
-        )
-        
-        if response.status_code == 200:
-            print(f"Email sent successfully to {to_email} via EmailJS")
-            return True, "Success"
-        else:
-            error_msg = f"EmailJS sending failed with status {response.status_code}: {response.text}"
-            print(error_msg)
-            return False, error_msg
-    except Exception as e:
-        error_msg = log_error(e, "send_email_via_emailjs")
-        return False, error_msg
+def ensure_directories():
+    """Ensure all required directories exist"""
+    for directory in [EMAIL_QUEUE_DIR, PROCESSED_DIR, FAILED_DIR]:
+        os.makedirs(directory, exist_ok=True)
 
-def send_email_via_smtp(to_email, subject, html_content):
-    """Send email using SMTP"""
-    try:
-        if not SENDER_APP_PASSWORD:
-            return False, "SMTP password not configured"
+def process_queue(max_emails=None, delay_seconds=1, verbose=True):
+    """Process emails in the queue using our centralized email utilities
+    
+    Args:
+        max_emails: Maximum number of emails to process (None for all)
+        delay_seconds: Delay between sending attempts
+        verbose: Whether to print detailed logs
         
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = to_email
-        msg['Subject'] = subject
-        
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
-        
-        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        
-        print(f"Email sent successfully to {to_email} via SMTP")
-        return True, "Success"
-    except Exception as e:
-        error_msg = log_error(e, "send_email_via_smtp")
-        return False, error_msg
+    Returns:
+        tuple: (processed_count, success_count, failed_count)
+    """
+    # Simply delegate to the centralized function
+    if verbose:
+        print("Processing email queue using centralized email utilities...")
+    
+    # Ensure required directories exist (this is redundant with process_email_queue but kept for safety)
+    email_utils.ensure_directories()
+    
+    # Process the queue
+    processed_count = email_utils.process_email_queue()
+    
+    if verbose:
+        print(f"Queue processing complete. Processed {processed_count} emails.")
+    
+    return processed_count, processed_count, 0  # For backward compatibility
 
-def process_queue():
-    """Process all queued emails"""
-    queue_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'queue')
-    processed_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'processed')
-    failed_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'failed')
+def process_legacy_queue():
+    """For backward compatibility - process any emails in the old queue format"""
+    # This function is mainly kept to ensure any emails in old queue format can be processed
+    ensure_directories()
     
-    # Create directories if they don't exist
-    os.makedirs(processed_dir, exist_ok=True)
-    os.makedirs(failed_dir, exist_ok=True)
-    
-    if not os.path.exists(queue_dir):
-        print(f"Queue directory not found: {queue_dir}")
-        return
-    
-    # Get all queued email files
-    queued_files = [f for f in os.listdir(queue_dir) if f.endswith('.json')]
-    
-    if not queued_files:
-        print("No emails in queue")
-        return
-    
-    print(f"Found {len(queued_files)} emails in queue")
-    
-    for filename in queued_files:
-        filepath = os.path.join(queue_dir, filename)
+    # Find any legacy queue files that might not fit the new format
+    legacy_count = 0
+    for filename in os.listdir(EMAIL_QUEUE_DIR):
+        if not filename.endswith('.json'):
+            continue
+            
+        filepath = os.path.join(EMAIL_QUEUE_DIR, filename)
         
         try:
-            # Read email data
+            # Try to read the file as JSON
             with open(filepath, 'r', encoding='utf-8') as f:
                 email_data = json.load(f)
             
-            to_email = email_data.get('to')
-            subject = email_data.get('subject', "Thanks for Joining Itza Yerba Mate's Pre-order Waitlist!")
-            html_content = email_data.get('html', '')
-            
-            print(f"Processing email to {to_email}")
-            
-            # Try EmailJS first
-            success, message = send_email_via_emailjs(to_email, html_content)
-            
-            # If EmailJS fails, try SMTP
-            if not success:
-                print(f"EmailJS failed: {message}. Trying SMTP...")
-                success, message = send_email_via_smtp(to_email, subject, html_content)
-            
-            # Move file to appropriate directory
-            if success:
-                target_dir = processed_dir
-                print(f"Successfully sent email to {to_email}")
-            else:
-                target_dir = failed_dir
-                print(f"Failed to send email to {to_email}: {message}")
-            
-            target_path = os.path.join(target_dir, filename)
-            os.rename(filepath, target_path)
-            
+            # Check if it has the expected fields but might be in old format
+            if 'to' in email_data and 'html' in email_data:
+                to_email = email_data.get('to')
+                subject = email_data.get('subject', "Message from Itza Yerba Mate")
+                html_content = email_data.get('html', '')
+                
+                # Use new utilities to send
+                success, message = email_utils.send_email(
+                    to_email, 
+                    subject, 
+                    html_content=html_content
+                )
+                
+                # Move the file
+                if success:
+                    target_dir = PROCESSED_DIR
+                    legacy_count += 1
+                else:
+                    target_dir = FAILED_DIR
+                
+                target_path = os.path.join(target_dir, filename)
+                os.rename(filepath, target_path)
+                
         except Exception as e:
-            log_error(e, f"processing {filename}")
-            # Move to failed directory
-            try:
-                failed_path = os.path.join(failed_dir, filename)
-                os.rename(filepath, failed_path)
-            except Exception as move_error:
-                log_error(move_error, f"moving {filename} to failed directory")
+            print(f"Error processing legacy email {filename}: {str(e)}")
+    
+    return legacy_count
+
+def main():
+    """Main function"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Process queued emails')
+    parser.add_argument('--max', type=int, help='Maximum number of emails to process')
+    parser.add_argument('--delay', type=float, default=1.0, help='Delay between sends (seconds)')
+    parser.add_argument('--quiet', action='store_true', help='Suppress detailed logs')
+    parser.add_argument('--legacy', action='store_true', help='Process legacy format emails only')
+    
+    args = parser.parse_args()
+    
+    if args.legacy:
+        # Process only legacy format emails
+        processed = process_legacy_queue()
+        print(f"Processed {processed} legacy format emails")
+    else:
+        # Process all emails in queue
+        processed, success, failed = process_queue(
+            max_emails=args.max,
+            delay_seconds=args.delay,
+            verbose=not args.quiet
+        )
+        
+        if not args.quiet:
+            print(f"Queue processing complete: {processed} emails processed")
+            print(f"Success: {success}, Failed: {failed}")
 
 if __name__ == "__main__":
-    print("Starting email queue processing...")
-    process_queue()
-    print("Email queue processing complete")
+    main()

@@ -3,14 +3,13 @@ from flask import Flask, request, jsonify, send_from_directory
 import os
 from datetime import datetime
 import requests
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import traceback
 import base64
 import json
 import time
 import csv
+# Import the centralized email utilities
+import email_utils
 
 app = Flask(__name__)
 
@@ -19,18 +18,6 @@ GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 REPO_OWNER = 'drinkitza'
 REPO_NAME = 'drinkitza'
 FILE_PATH = 'emails/waitlist.csv'
-
-# Email configuration - SMTP fallback
-SMTP_SERVER = 'smtp.gmail.com'
-SMTP_PORT = 587
-SENDER_EMAIL = os.getenv('SENDER_EMAIL', 'drinkitza@gmail.com')
-SENDER_APP_PASSWORD = os.getenv('SENDER_APP_PASSWORD', '')
-
-# EmailJS configuration (primary method)
-EMAIL_SERVICE_URL = os.getenv('EMAIL_SERVICE_URL')
-EMAIL_SERVICE_USER_ID = os.getenv('EMAIL_SERVICE_USER_ID')
-EMAIL_SERVICE_TEMPLATE_ID = os.getenv('EMAIL_SERVICE_TEMPLATE_ID')
-EMAIL_SERVICE_ACCESS_TOKEN = os.getenv('EMAIL_SERVICE_ACCESS_TOKEN')
 
 # Simple admin authentication (for demo purposes only - use proper auth in production)
 ADMIN_USERNAME = os.getenv('ADMIN_USERNAME', 'admin')
@@ -52,17 +39,17 @@ def send_confirmation_email(recipient_email):
     """Send the beautiful thank you email to new waitlist signups"""
     try:
         # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
+        if email_utils.EMAIL_SERVICE_URL and email_utils.EMAIL_SERVICE_USER_ID and email_utils.EMAIL_SERVICE_TEMPLATE_ID:
             try:
                 emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
+                    'service_id': email_utils.EMAIL_SERVICE_URL,
+                    'template_id': email_utils.EMAIL_SERVICE_TEMPLATE_ID,
+                    'user_id': email_utils.EMAIL_SERVICE_USER_ID,
                     'template_params': {
                         'to_email': recipient_email,
                         'email': recipient_email  # For template replacement
                     },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+                    'accessToken': email_utils.EMAIL_SERVICE_ACCESS_TOKEN
                 }
                 
                 headers = {'Content-Type': 'application/json'}
@@ -83,34 +70,14 @@ def send_confirmation_email(recipient_email):
                 # Fall back to SMTP or queue
         
         # Create a multipart message for SMTP or queue
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "Thanks for Joining Itza Yerba Mate's Pre-order Waitlist!"
-
-        # Read the HTML template
-        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'confirmation_template.html')
-        
-        if not os.path.exists(template_path):
-            print(f"Warning: Email template not found at {template_path}")
-            html_content = "<p>Thanks for joining Itza Yerba Mate's pre-order waitlist!</p>"
-        else:
-            with open(template_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-        
-        # Replace placeholders
-        html_content = html_content.replace('{{email}}', recipient_email)
-        
-        # Create HTML version
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
+        msg = email_utils.create_message(recipient_email)
         
         # Try to send email via SMTP as second option
-        if SENDER_APP_PASSWORD:
+        if email_utils.SENDER_EMAIL and email_utils.SENDER_APP_PASSWORD:
             try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                server = smtplib.SMTP(email_utils.SMTP_SERVER, email_utils.SMTP_PORT)
                 server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.login(email_utils.SENDER_EMAIL, email_utils.SENDER_APP_PASSWORD)
                 server.send_message(msg)
                 server.quit()
                 print(f"Email sent successfully to {recipient_email} via SMTP")
@@ -125,9 +92,9 @@ def send_confirmation_email(recipient_email):
         
         email_data = {
             'to': recipient_email,
-            'from': SENDER_EMAIL,
+            'from': email_utils.SENDER_EMAIL,
             'subject': msg['Subject'],
-            'html': html_content
+            'html': email_utils.get_html_content(msg)
         }
         
         timestamp = str(int(time.time()))
@@ -148,18 +115,18 @@ def send_educational_email(recipient_email):
     """Send the educational email about yerba mate history and benefits"""
     try:
         # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID:
+        if email_utils.EMAIL_SERVICE_URL and email_utils.EMAIL_SERVICE_USER_ID and email_utils.EMAIL_SERVICE_TEMPLATE_ID:
             try:
                 emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
+                    'service_id': email_utils.EMAIL_SERVICE_URL,
+                    'template_id': email_utils.EMAIL_SERVICE_TEMPLATE_ID,
+                    'user_id': email_utils.EMAIL_SERVICE_USER_ID,
                     'template_params': {
                         'to_email': recipient_email,
                         'email': recipient_email,  # For template replacement
                         'template_type': 'educational'  # Flag to use educational template
                     },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+                    'accessToken': email_utils.EMAIL_SERVICE_ACCESS_TOKEN
                 }
                 
                 headers = {'Content-Type': 'application/json'}
@@ -180,34 +147,14 @@ def send_educational_email(recipient_email):
                 # Fall back to SMTP or queue
         
         # Create a multipart message for SMTP or queue
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "Discover the Magic of Yerba Mate - Itza's Educational Guide"
-
-        # Read the HTML template
-        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'educational_template.html')
-        
-        if not os.path.exists(template_path):
-            print(f"Warning: Educational email template not found at {template_path}")
-            html_content = "<p>Learn about the amazing benefits of yerba mate!</p>"
-        else:
-            with open(template_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-        
-        # Replace placeholders
-        html_content = html_content.replace('{{email}}', recipient_email)
-        
-        # Create HTML version
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
+        msg = email_utils.create_message(recipient_email, template_type='educational')
         
         # Try to send email via SMTP as second option
-        if SENDER_APP_PASSWORD:
+        if email_utils.SENDER_EMAIL and email_utils.SENDER_APP_PASSWORD:
             try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                server = smtplib.SMTP(email_utils.SMTP_SERVER, email_utils.SMTP_PORT)
                 server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.login(email_utils.SENDER_EMAIL, email_utils.SENDER_APP_PASSWORD)
                 server.send_message(msg)
                 server.quit()
                 print(f"Educational email sent successfully to {recipient_email} via SMTP")
@@ -222,9 +169,9 @@ def send_educational_email(recipient_email):
         
         email_data = {
             'to': recipient_email,
-            'from': SENDER_EMAIL,
+            'from': email_utils.SENDER_EMAIL,
             'subject': msg['Subject'],
-            'html': html_content
+            'html': email_utils.get_html_content(msg)
         }
         
         timestamp = str(int(time.time()))
@@ -245,7 +192,7 @@ def send_brewing_guide(recipient_email):
     """Send the brewing guide email"""
     try:
         # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
+        if email_utils.EMAIL_SERVICE_URL and email_utils.EMAIL_SERVICE_USER_ID and email_utils.EMAIL_SERVICE_TEMPLATE_ID and email_utils.EMAIL_SERVICE_ACCESS_TOKEN:
             try:
                 # Read the HTML template
                 template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'brewing_guide_template.html')
@@ -261,15 +208,15 @@ def send_brewing_guide(recipient_email):
                 html_content = html_content.replace('{{email}}', recipient_email)
                 
                 emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
+                    'service_id': email_utils.EMAIL_SERVICE_URL,
+                    'template_id': email_utils.EMAIL_SERVICE_TEMPLATE_ID,
+                    'user_id': email_utils.EMAIL_SERVICE_USER_ID,
                     'template_params': {
                         'to_email': recipient_email,
                         'subject': "How to Brew Yerba Mate + FREE Gourd & Bombilla Offer!",
                         'html_content': html_content
                     },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+                    'accessToken': email_utils.EMAIL_SERVICE_ACCESS_TOKEN
                 }
                 
                 headers = {'Content-Type': 'application/json'}
@@ -290,34 +237,14 @@ def send_brewing_guide(recipient_email):
                 # Fall back to SMTP or queue
         
         # Create a multipart message for SMTP or queue
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "How to Brew Yerba Mate + FREE Gourd & Bombilla Offer!"
-
-        # Read the HTML template
-        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'brewing_guide_template.html')
-        
-        if not os.path.exists(template_path):
-            print(f"Warning: Brewing guide email template not found at {template_path}")
-            html_content = "<p>Learn how to brew yerba mate!</p>"
-        else:
-            with open(template_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-        
-        # Replace placeholders
-        html_content = html_content.replace('{{email}}', recipient_email)
-        
-        # Create HTML version
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
+        msg = email_utils.create_message(recipient_email, template_type='brewing_guide')
         
         # Try to send email via SMTP as second option
-        if SENDER_EMAIL and SENDER_APP_PASSWORD:
+        if email_utils.SENDER_EMAIL and email_utils.SENDER_APP_PASSWORD:
             try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                server = smtplib.SMTP(email_utils.SMTP_SERVER, email_utils.SMTP_PORT)
                 server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.login(email_utils.SENDER_EMAIL, email_utils.SENDER_APP_PASSWORD)
                 server.send_message(msg)
                 server.quit()
                 print(f"Brewing guide email sent successfully to {recipient_email} via SMTP")
@@ -332,9 +259,9 @@ def send_brewing_guide(recipient_email):
         
         email_data = {
             'to': recipient_email,
-            'from': SENDER_EMAIL,
+            'from': email_utils.SENDER_EMAIL,
             'subject': msg['Subject'],
-            'html': html_content,
+            'html': email_utils.get_html_content(msg),
             'type': 'brewing_guide'
         }
         
@@ -357,7 +284,7 @@ def send_milestone_email(recipient_email):
     """Send the 100 milestone celebration email"""
     try:
         # First try EmailJS (primary method)
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
+        if email_utils.EMAIL_SERVICE_URL and email_utils.EMAIL_SERVICE_USER_ID and email_utils.EMAIL_SERVICE_TEMPLATE_ID and email_utils.EMAIL_SERVICE_ACCESS_TOKEN:
             try:
                 # Read the HTML template
                 template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'milestone_template.html')
@@ -373,15 +300,15 @@ def send_milestone_email(recipient_email):
                 html_content = html_content.replace('{{email}}', recipient_email)
                 
                 emailjs_data = {
-                    'service_id': EMAIL_SERVICE_URL,
-                    'template_id': EMAIL_SERVICE_TEMPLATE_ID,
-                    'user_id': EMAIL_SERVICE_USER_ID,
+                    'service_id': email_utils.EMAIL_SERVICE_URL,
+                    'template_id': email_utils.EMAIL_SERVICE_TEMPLATE_ID,
+                    'user_id': email_utils.EMAIL_SERVICE_USER_ID,
                     'template_params': {
                         'to_email': recipient_email,
                         'subject': "Celebrating 100 Customers! Your Free Gift is Confirmed",
                         'html_content': html_content
                     },
-                    'accessToken': EMAIL_SERVICE_ACCESS_TOKEN
+                    'accessToken': email_utils.EMAIL_SERVICE_ACCESS_TOKEN
                 }
                 
                 headers = {'Content-Type': 'application/json'}
@@ -402,34 +329,14 @@ def send_milestone_email(recipient_email):
                 # Fall back to SMTP or queue
         
         # Create a multipart message for SMTP or queue
-        msg = MIMEMultipart('alternative')
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = recipient_email
-        msg['Subject'] = "Celebrating 100 Customers! Your Free Gift is Confirmed"
-
-        # Read the HTML template
-        template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'emails', 'milestone_template.html')
-        
-        if not os.path.exists(template_path):
-            print(f"Warning: Milestone email template not found at {template_path}")
-            html_content = "<p>Congratulations on being part of our first 100 customers!</p>"
-        else:
-            with open(template_path, 'r', encoding='utf-8') as f:
-                html_content = f.read()
-        
-        # Replace placeholders
-        html_content = html_content.replace('{{email}}', recipient_email)
-        
-        # Create HTML version
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
+        msg = email_utils.create_message(recipient_email, template_type='milestone')
         
         # Try to send email via SMTP as second option
-        if SENDER_EMAIL and SENDER_APP_PASSWORD:
+        if email_utils.SENDER_EMAIL and email_utils.SENDER_APP_PASSWORD:
             try:
-                server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+                server = smtplib.SMTP(email_utils.SMTP_SERVER, email_utils.SMTP_PORT)
                 server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.login(email_utils.SENDER_EMAIL, email_utils.SENDER_APP_PASSWORD)
                 server.send_message(msg)
                 server.quit()
                 print(f"Milestone email sent successfully to {recipient_email} via SMTP")
@@ -444,9 +351,9 @@ def send_milestone_email(recipient_email):
         
         email_data = {
             'to': recipient_email,
-            'from': SENDER_EMAIL,
+            'from': email_utils.SENDER_EMAIL,
             'subject': msg['Subject'],
-            'html': html_content,
+            'html': email_utils.get_html_content(msg),
             'type': 'milestone'
         }
         
@@ -469,7 +376,7 @@ def send_update_email(recipient_email):
     """Send an update email about ordering availability"""
     try:
         # First try to send via EmailJS
-        if EMAIL_SERVICE_URL and EMAIL_SERVICE_USER_ID and EMAIL_SERVICE_TEMPLATE_ID and EMAIL_SERVICE_ACCESS_TOKEN:
+        if email_utils.EMAIL_SERVICE_URL and email_utils.EMAIL_SERVICE_USER_ID and email_utils.EMAIL_SERVICE_TEMPLATE_ID and email_utils.EMAIL_SERVICE_ACCESS_TOKEN:
             # Read the update email template
             with open('emails/update_template.html', 'r', encoding='utf-8') as file:
                 template_content = file.read()
@@ -481,8 +388,8 @@ def send_update_email(recipient_email):
             payload = {
                 'service_id': 'service_itza',
                 'template_id': 'template_update',
-                'user_id': EMAIL_SERVICE_USER_ID,
-                'accessToken': EMAIL_SERVICE_ACCESS_TOKEN,
+                'user_id': email_utils.EMAIL_SERVICE_USER_ID,
+                'accessToken': email_utils.EMAIL_SERVICE_ACCESS_TOKEN,
                 'template_params': {
                     'to_email': recipient_email,
                     'html_content': email_content,
@@ -491,7 +398,7 @@ def send_update_email(recipient_email):
             }
             
             # Send the request to EmailJS
-            response = requests.post(EMAIL_SERVICE_URL, json=payload)
+            response = requests.post(email_utils.EMAIL_SERVICE_URL, json=payload)
             
             if response.status_code == 200:
                 print(f"Update email sent to {recipient_email} via EmailJS")
@@ -501,27 +408,14 @@ def send_update_email(recipient_email):
                 # Fall back to SMTP
         
         # If EmailJS fails or is not configured, try SMTP
-        if SENDER_EMAIL and SENDER_APP_PASSWORD:
+        if email_utils.SENDER_EMAIL and email_utils.SENDER_APP_PASSWORD:
             # Create the email message
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = 'IMPORTANT: Ordering Available Tomorrow - Itza Yerba Mate'
-            msg['From'] = SENDER_EMAIL
-            msg['To'] = recipient_email
-            
-            # Read the update email template
-            with open('emails/update_template.html', 'r', encoding='utf-8') as file:
-                template_content = file.read()
-            
-            # Replace placeholders with actual values
-            email_content = template_content.replace('{{email}}', recipient_email)
-            
-            # Attach the HTML content
-            msg.attach(MIMEText(email_content, 'html'))
+            msg = email_utils.create_message(recipient_email, template_type='update')
             
             # Connect to the SMTP server and send the email
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            with smtplib.SMTP(email_utils.SMTP_SERVER, email_utils.SMTP_PORT) as server:
                 server.starttls()
-                server.login(SENDER_EMAIL, SENDER_APP_PASSWORD)
+                server.login(email_utils.SENDER_EMAIL, email_utils.SENDER_APP_PASSWORD)
                 server.send_message(msg)
             
             print(f"Update email sent to {recipient_email} via SMTP")
